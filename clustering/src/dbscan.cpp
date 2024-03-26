@@ -1,11 +1,5 @@
 #include "dbscan.hpp"
 
-#include <cstddef>
-#include "nanoflann.hpp"
-
-#include <type_traits>
-#include <vector>
-
 // And this is the "dataset to kd-tree" adaptor class:
 
 inline auto get_pt(const point2& p, std::size_t dim)
@@ -114,17 +108,39 @@ auto dbscan(const Adaptor& adapt, float eps, int min_pts)
 }
 
 
-auto dbscan(const std::span<const point2>& data, float eps, int min_pts) -> std::vector<std::vector<size_t>>
-{
-    const auto adapt = adaptor<point2>(data);
-
-    return dbscan<2>(adapt, eps, min_pts);
-}
-
-
 auto dbscan(const std::span<const point3>& data, float eps, int min_pts) -> std::vector<std::vector<size_t>>
 {
     const auto adapt = adaptor<point3>(data);
 
     return dbscan<3>(adapt, eps, min_pts);
+}
+
+auto label(const std::vector<std::vector<size_t>>& clusters, size_t n)
+{
+    auto flat_clusters = std::vector<size_t>(n);
+
+    for(size_t i = 0; i < clusters.size(); i++)
+    {
+        for(auto p: clusters[i])
+        {
+            flat_clusters[p] = i + 1;
+        }
+    }
+
+    return flat_clusters;
+}
+
+auto dbscan3d(const std::span<const float>& data, float eps, int min_pts)
+{
+    auto points = std::vector<point3>(data.size() / 3);
+
+    std::memcpy(points.data(), data.data(), sizeof(float) * data.size());
+
+    auto clusters = dbscan(points, eps, min_pts);
+    auto flat     = label (clusters, points.size());
+
+    for(size_t i = 0; i < points.size(); i++)
+    {
+        std::cout << points[i].x << ',' << points[i].y << ',' << points[i].z << ',' << flat[i] << '\n';
+    }
 }

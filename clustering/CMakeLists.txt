@@ -1,10 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(clustering)
 
-# Default to C++14
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
-endif()
+set(CMAKE_CXX_STANDARD 20)
+
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -28,10 +26,10 @@ add_definitions(${PCL_DEFINITIONS})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 
 add_library(${PROJECT_NAME} SHARED
-#src/dbscan.cpp
+src/dbscan.cpp
 src/utils/visualizer.cpp
-#include/dbscan.hpp
-#include/nanoflann.hpp
+include/dbscan.hpp
+include/nanoflann.hpp
 include/utils/visualizer.hpp
 )
 ament_target_dependencies(${PROJECT_NAME} rclcpp sensor_msgs PCL pcl_conversions)
@@ -41,8 +39,13 @@ add_executable(lidar_cluster src/lidar_cluster.cpp)
 ament_target_dependencies(lidar_cluster rclcpp sensor_msgs PCL pcl_conversions)
 target_link_libraries(lidar_cluster ${PROJECT_NAME})
 
-install(TARGETS
-  lidar_cluster
+install(TARGETS ${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+install(TARGETS lidar_cluster
   DESTINATION lib/${PROJECT_NAME}
 )
 

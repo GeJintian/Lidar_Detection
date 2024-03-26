@@ -2,12 +2,29 @@
 #define DBSCAN_H
 #pragma once
 
+#include "nanoflann.hpp"
 
 #include <cassert>
 #include <cstddef>
 #include <span>
 #include <vector>
 #include <cstdlib>
+#include <type_traits>
+#include <iostream>
+#include <string>
+#include <system_error>
+#include <utility>
+#include <fstream>
+#include <charconv>
+#include <tuple>
+#include <cstring>
+#include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl_conversions/pcl_conversions.h>
+
 
 struct point2
 {
@@ -19,8 +36,8 @@ struct point3
     float x, y, z;
 };
 
-auto dbscan(const std::span<const point2>& data, float eps, int min_pts) -> std::vector<std::vector<size_t>>;
 auto dbscan(const std::span<const point3>& data, float eps, int min_pts) -> std::vector<std::vector<size_t>>;
+auto dbscan3d(const std::span<const float>& data, float eps, int min_pts);
 
 // template<size_t dim>
 // auto dbscan(const std::span<float>& data, float eps, int min_pts)

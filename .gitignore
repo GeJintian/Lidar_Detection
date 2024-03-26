@@ -5,3 +5,4 @@ log/
 logs/
 __pycache__/
 lib/
+data/
