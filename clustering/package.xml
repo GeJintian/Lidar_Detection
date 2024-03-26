@@ -3,7 +3,7 @@
 <package format="3">
   <name>clustering</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>ROS2 Lidar Clustering package for A2RL</description>
   <maintainer email="jintian.ge@qq.cim">oscar</maintainer>
   <license>TODO: License declaration</license>
 
