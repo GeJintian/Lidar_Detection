@@ -4,3 +4,4 @@ log/
 .vscode/
 logs/
 __pycache__/
+lib/
