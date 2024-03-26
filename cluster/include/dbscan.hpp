@@ -1,3 +1,5 @@
+#ifndef DBSCAN_H
+#define DBSCAN_H
 #pragma once
 
 
@@ -32,3 +34,4 @@ auto dbscan(const std::span<const point3>& data, float eps, int min_pts) -> std:
 //         auto points = std::span<const point2> 
 //     }
 // }
+#endif
