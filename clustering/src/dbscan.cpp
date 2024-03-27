@@ -130,17 +130,24 @@ auto label(const std::vector<std::vector<size_t>>& clusters, size_t n)
     return flat_clusters;
 }
 
-auto dbscan3d(const std::span<const float>& data, float eps, int min_pts)
+void dbscan3d(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float eps, int min_pts)
 {
-    auto points = std::vector<point3>(data.size() / 3);
+    std::cout<<"before enter point"<<std::endl;
+    std::vector<point3> points;
+    //auto points = std::vector<point3>(cloud.points.size());
 
-    std::memcpy(points.data(), data.data(), sizeof(float) * data.size());
-
-    auto clusters = dbscan(points, eps, min_pts);
-    auto flat     = label (clusters, points.size());
-
-    for(size_t i = 0; i < points.size(); i++)
-    {
-        std::cout << points[i].x << ',' << points[i].y << ',' << points[i].z << ',' << flat[i] << '\n';
+    //std::memcpy(points.data(), data.data(), sizeof(float) * data.size());
+    for (const auto& point : *cloud) {
+        points.push_back(point3(point.x, point.y, point.z));
     }
+    std::cout<<"Finish converting to vector"<<std::endl;
+    auto clusters = dbscan(points, eps, min_pts);
+    //auto flat     = label (clusters, points.size());
+    std::cout<<"Finish process one point"<<std::endl;
+    // for(size_t i = 0; i < points.size(); i++)
+    // {
+    //     std::cout << points[i].x << ',' << points[i].y << ',' << points[i].z << ',' << flat[i] << '\n';
+    // }
 }
+
+//pcl::io::loadPCDFile<pcl::PointXYZ>

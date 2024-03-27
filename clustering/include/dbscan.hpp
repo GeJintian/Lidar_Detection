@@ -31,13 +31,15 @@ struct point2
     float x, y;
 };
 
-struct point3
+class point3
 {
-    float x, y, z;
+    public:
+        float x, y, z;
+        point3(float x,float y,float z):x(x),y(y),z(z){}
 };
 
 auto dbscan(const std::span<const point3>& data, float eps, int min_pts) -> std::vector<std::vector<size_t>>;
-auto dbscan3d(const std::span<const float>& data, float eps, int min_pts);
+void dbscan3d(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, float eps, int min_pts);
 
 // template<size_t dim>
 // auto dbscan(const std::span<float>& data, float eps, int min_pts)
