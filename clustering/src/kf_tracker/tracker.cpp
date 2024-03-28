@@ -56,10 +56,10 @@ each KF_Tracker objID[0] corresponds to KFT0, objID[1] corresponds to KFT1 etc.
 */
 
 std::pair<int, int> findIndexOfMin(std::vector<std::vector<float>> distMat) {
-  cout << "findIndexOfMin cALLED\n";
+  //cout << "findIndexOfMin cALLED\n";
   std::pair<int, int> minIndex;
   float minEl = std::numeric_limits<float>::max();
-  cout << "minEl=" << minEl << "\n";
+  //cout << "minEl=" << minEl << "\n";
   for (int i = 0; i < distMat.size(); i++)
     for (int j = 0; j < distMat.at(0).size(); j++) {
       if (distMat[i][j] < minEl) {
@@ -67,7 +67,7 @@ std::pair<int, int> findIndexOfMin(std::vector<std::vector<float>> distMat) {
         minIndex = std::make_pair(i, j);
       }
     }
-  cout << "minIndex=" << minIndex.first << "," << minIndex.second << "\n";
+  //cout << "minIndex=" << minIndex.first << "," << minIndex.second << "\n";
   return minIndex;
 }
 void KFT(const std_msgs::msg::Float32MultiArray ccs, rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr objID_pub, rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr markerPub) {
@@ -276,6 +276,7 @@ void KFTrackerNode::cloud_cb(const sensor_msgs::msg::PointCloud2::ConstSharedPtr
   // cout<<"IF firstFrame="<<firstFrame<<"\n";
   // If this is the first frame, initialize kalman filters for the clustered
   // objects
+  cout<<"Call cloud_cb"<<endl;
   if (firstFrame) {
     // Initialize 6 Kalman Filters; Assuming 6 max objects in the dataset.
     // Could be made generic by creating a Kalman Filter only when a new object
@@ -349,6 +350,7 @@ void KFTrackerNode::cloud_cb(const sensor_msgs::msg::PointCloud2::ConstSharedPtr
     ec.setInputCloud(input_cloud);
     /* Extract the clusters out of pc and save indices in cluster_indices.*/
     ec.extract(cluster_indices);
+    return;
 
     std::vector<pcl::PointIndices>::const_iterator it;
     std::vector<int>::const_iterator pit;
@@ -492,6 +494,7 @@ void KFTrackerNode::cloud_cb(const sensor_msgs::msg::PointCloud2::ConstSharedPtr
     // cout<<"PCL init successfull\n";
     /* Extract the clusters out of pc and save indices in cluster_indices.*/
     ec.extract(cluster_indices);
+    return;
     // cout<<"PCL extract successfull\n";
     /* To separate each cluster out of the vector<PointIndices> we have to
      * iterate through cluster_indices, create a new PointCloud for each
@@ -631,37 +634,4 @@ int main(int argc, char **argv) {
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;
-
-
-  // // ROS init
-  // rclcpp::init(argc, argv, "kf_tracker");
-  // rclcpp::NodeHandle nh;
-
-  // // Publishers to publish the state of the objects (pos and vel)
-  // // objState1=nh.advertise<geometry_msgs::Twist> ("obj_1",1);
-
-  // cout << "About to setup callback\n";
-
-  // // Create a ROS subscriber for the input point cloud
-  // rclcpp::Subscriber sub = nh.subscribe("filtered_cloud", 1, cloud_cb);
-  // // Create a ROS publisher for the output point cloud
-  // pub_cluster0 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_0", 1);
-  // pub_cluster1 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_1", 1);
-  // pub_cluster2 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_2", 1);
-  // pub_cluster3 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_3", 1);
-  // pub_cluster4 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_4", 1);
-  // pub_cluster5 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_5", 1);
-  // // Subscribe to the clustered pointclouds
-  // // ros::Subscriber c1=nh.subscribe("ccs",100,KFT);
-  // objID_pub = nh.advertise<std_msgs::msg::Int32MultiArray>("obj_id", 1);
-  // /* Point cloud clustering
-  //  */
-
-  // // cc_pos=nh.advertise<std_msgs::Float32MultiArray>("ccs",100);//clusterCenter1
-  // markerPub = nh.advertise<visualization_msgs::msg::MarkerArray>("viz", 1);
-
-  // /* Point cloud clustering
-  //  */
-
-  // rclcpp::spin();
 }

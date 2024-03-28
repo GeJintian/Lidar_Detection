@@ -59,7 +59,7 @@ public:
 
         // Subscriber
         sub = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "filtered_cloud", 1, std::bind(&KFTrackerNode::cloud_cb, this, std::placeholders::_1));
+            "/sensor/lidar_right/points", 1, std::bind(&KFTrackerNode::cloud_cb, this, std::placeholders::_1));
     }
 
 private:
