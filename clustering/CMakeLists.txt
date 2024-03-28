@@ -9,13 +9,21 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(PCL REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(visualization_msgs REQUIRED)
+#find_package(geometry_msgs REQUIRED)
+
+MESSAGE("OPENCV VERSION:")
+MESSAGE(${OpenCV_VERSION})
 
 include_directories(
 ${PROJECT_SOURCE_DIR}
 ${PROJECT_SOURCE_DIR}/include
 ${PROJECT_SOURCE_DIR}/include/utils
+${PROJECT_SOURCE_DIR}/include/tf_tracker
 ${PCL_INCLUDE_DIRS}
 ${pcl_conversions_INCLUDE_DIRS}
+${OpenCV_INCLUDE_DIRS}
 #${rclcpp_INCLUDE_DIRS}
 /usr/include/vtk-9.1/
 )
@@ -28,16 +36,28 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 add_library(${PROJECT_NAME} SHARED
 src/dbscan.cpp
 src/utils/visualizer.cpp
+src/kf_tracker/CKalmanFilter.cpp
+src/kf_tracker/featureDetection.cpp
 include/dbscan.hpp
 include/nanoflann.hpp
+include/kf_tracker/CKalmanFilter.hpp
+include/kf_tracker/featureDetection.hpp
+include/kf_tracker/tracker.hpp
 include/utils/visualizer.hpp
 )
-ament_target_dependencies(${PROJECT_NAME} rclcpp sensor_msgs PCL pcl_conversions)
-target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES})
 
-add_executable(lidar_cluster src/lidar_cluster.cpp)
-ament_target_dependencies(lidar_cluster rclcpp sensor_msgs PCL pcl_conversions)
-target_link_libraries(lidar_cluster ${PROJECT_NAME})
+ament_target_dependencies(${PROJECT_NAME} rclcpp sensor_msgs PCL pcl_conversions OpenCV)
+target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# For DBSCAN clustering
+add_executable(dbscan_cluster src/lidar_cluster.cpp)
+ament_target_dependencies(dbscan_cluster rclcpp sensor_msgs PCL pcl_conversions)
+target_link_libraries(dbscan_cluster ${PROJECT_NAME})
+
+# For KDTree clustering + KF tracking
+add_executable(kf_tracking src/kf_tracker/tracker.cpp)
+ament_target_dependencies(kf_tracking rclcpp sensor_msgs PCL pcl_conversions OpenCV visualization_msgs)
+target_link_libraries(kf_tracking ${PROJECT_NAME})
 
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
@@ -45,7 +65,7 @@ install(TARGETS ${PROJECT_NAME}
   RUNTIME DESTINATION bin
 )
 
-install(TARGETS lidar_cluster
+install(TARGETS dbscan_cluster kf_tracking
   DESTINATION lib/${PROJECT_NAME}
 )
 
