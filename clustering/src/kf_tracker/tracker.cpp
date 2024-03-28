@@ -1,41 +1,4 @@
-#include "kf_tracker/CKalmanFilter.hpp"
-#include "kf_tracker/featureDetection.hpp"
 #include "kf_tracker/tracker.hpp"
-#include "opencv2/video/tracking.hpp"
-#include <algorithm>
-#include <fstream>
-#include <geometry_msgs/msg/point.hpp>
-#include <iostream>
-#include <iterator>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/video/video.hpp>
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
-#include <std_msgs/msg/float32_multi_array.hpp>
-#include <std_msgs/msg/int32_multi_array.hpp>
-#include <string.h>
-
-#include <pcl/common/centroid.h>
-#include <pcl/common/geometry.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/kdtree/kdtree.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/segmentation/extract_clusters.h>
-#include <pcl/segmentation/sac_segmentation.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include "sensor_msgs/msg/point_cloud2.hpp"
-
-#include <limits>
-#include <utility>
-#include "visualization_msgs/msg/marker.hpp"
-#include "visualization_msgs/msg/marker_array.hpp"
 
 using namespace std;
 using namespace cv;
@@ -52,14 +15,6 @@ cv::KalmanFilter KF3(stateDim, measDim, ctrlDim, CV_32F);
 cv::KalmanFilter KF4(stateDim, measDim, ctrlDim, CV_32F);
 cv::KalmanFilter KF5(stateDim, measDim, ctrlDim, CV_32F);
 
-ros::Publisher pub_cluster0;
-ros::Publisher pub_cluster1;
-ros::Publisher pub_cluster2;
-ros::Publisher pub_cluster3;
-ros::Publisher pub_cluster4;
-ros::Publisher pub_cluster5;
-
-ros::Publisher markerPub;
 
 std::vector<geometry_msgs::msg::Point> prevClusterCenters;
 
@@ -115,7 +70,7 @@ std::pair<int, int> findIndexOfMin(std::vector<std::vector<float>> distMat) {
   cout << "minIndex=" << minIndex.first << "," << minIndex.second << "\n";
   return minIndex;
 }
-void KFT(const std_msgs::msg::Float32MultiArray ccs) {
+void KFT(const std_msgs::msg::Float32MultiArray ccs, rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr objID_pub, rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr markerPub) {
 
   // First predict, to update the internal statePre variable
 
@@ -232,7 +187,7 @@ void KFT(const std_msgs::msg::Float32MultiArray ccs) {
     visualization_msgs::msg::Marker m;
 
     m.id = i;
-    m.type = visualization_msgs::msg:;Marker::CUBE;
+    m.type = visualization_msgs::msg::Marker::CUBE;
     m.header.frame_id = "map";
     m.scale.x = 0.3;
     m.scale.y = 0.3;
@@ -254,13 +209,13 @@ void KFT(const std_msgs::msg::Float32MultiArray ccs) {
 
   prevClusterCenters = clusterCenters;
 
-  markerPub.publish(clusterMarkers);
+  markerPub->publish(clusterMarkers);
 
   std_msgs::msg::Int32MultiArray obj_id;
   for (auto it = objID.begin(); it != objID.end(); it++)
     obj_id.data.push_back(*it);
   // Publish the object IDs
-  objID_pub.publish(obj_id);
+  objID_pub->publish(obj_id);
   // convert clusterCenters from geometry_msgs::Point to floats
   std::vector<std::vector<float>> cc;
   for (int i = 0; i < 6; i++) {
@@ -307,17 +262,16 @@ void KFT(const std_msgs::msg::Float32MultiArray ccs) {
   // Point statePt(estimated.at<float>(0),estimated.at<float>(1));
   // cout<<"DONE KF_TRACKER\n";
 }
-void publish_cloud(ros::Publisher &pub,
+void publish_cloud(rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub,
                    pcl::PointCloud<pcl::PointXYZ>::Ptr cluster) {
-  sensor_msgs::msg::PointCloud2::Ptr clustermsg(new sensor_msgs::msg::PointCloud2);
-  pcl::toROSMsg(*cluster, *clustermsg);
-  clustermsg->header.frame_id = "map";
-  clustermsg->header.stamp = ros::Time::now();
-  pub.publish(*clustermsg);
+  sensor_msgs::msg::PointCloud2 clustermsg;
+  pcl::toROSMsg(*cluster, clustermsg);
+  clustermsg.header.frame_id = "map";
+  clustermsg.header.stamp = rclcpp::Clock().now();
+  pub->publish(clustermsg);
 }
 
-void cloud_cb(const sensor_msgs::msg::PointCloud2ConstPtr &input)
-
+void KFTrackerNode::cloud_cb(const sensor_msgs::msg::PointCloud2::ConstSharedPtr input)
 {
   // cout<<"IF firstFrame="<<firstFrame<<"\n";
   // If this is the first frame, initialize kalman filters for the clustered
@@ -613,14 +567,14 @@ void cloud_cb(const sensor_msgs::msg::PointCloud2ConstPtr &input)
     // cout<<"6 clusters initialized\n";
 
     // cc_pos.publish(cc);// Publish cluster mid-points.
-    KFT(cc);
+    KFT(cc, objID_pub, markerPub);
     int i = 0;
     bool publishedCluster[6];
     for (auto it = objID.begin(); it != objID.end();
          it++) { // cout<<"Inside the for loop\n";
 
       switch (i) {
-        cout << "Inside the switch case\n";
+        //cout << "Inside the switch case\n";
       case 0: {
         publish_cloud(pub_cluster0, cluster_vec[*it]);
         publishedCluster[i] =
@@ -672,35 +626,42 @@ void cloud_cb(const sensor_msgs::msg::PointCloud2ConstPtr &input)
 }
 
 int main(int argc, char **argv) {
-  // ROS init
-  ros::init(argc, argv, "kf_tracker");
-  ros::NodeHandle nh;
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<KFTrackerNode>();
+  rclcpp::spin(node);
+  rclcpp::shutdown();
+  return 0;
 
-  // Publishers to publish the state of the objects (pos and vel)
-  // objState1=nh.advertise<geometry_msgs::Twist> ("obj_1",1);
 
-  cout << "About to setup callback\n";
+  // // ROS init
+  // rclcpp::init(argc, argv, "kf_tracker");
+  // rclcpp::NodeHandle nh;
 
-  // Create a ROS subscriber for the input point cloud
-  ros::Subscriber sub = nh.subscribe("filtered_cloud", 1, cloud_cb);
-  // Create a ROS publisher for the output point cloud
-  pub_cluster0 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_0", 1);
-  pub_cluster1 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_1", 1);
-  pub_cluster2 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_2", 1);
-  pub_cluster3 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_3", 1);
-  pub_cluster4 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_4", 1);
-  pub_cluster5 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_5", 1);
-  // Subscribe to the clustered pointclouds
-  // ros::Subscriber c1=nh.subscribe("ccs",100,KFT);
-  objID_pub = nh.advertise<std_msgs::msg::Int32MultiArray>("obj_id", 1);
-  /* Point cloud clustering
-   */
+  // // Publishers to publish the state of the objects (pos and vel)
+  // // objState1=nh.advertise<geometry_msgs::Twist> ("obj_1",1);
 
-  // cc_pos=nh.advertise<std_msgs::Float32MultiArray>("ccs",100);//clusterCenter1
-  markerPub = nh.advertise<visualization_msgs::msg::MarkerArray>("viz", 1);
+  // cout << "About to setup callback\n";
 
-  /* Point cloud clustering
-   */
+  // // Create a ROS subscriber for the input point cloud
+  // rclcpp::Subscriber sub = nh.subscribe("filtered_cloud", 1, cloud_cb);
+  // // Create a ROS publisher for the output point cloud
+  // pub_cluster0 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_0", 1);
+  // pub_cluster1 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_1", 1);
+  // pub_cluster2 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_2", 1);
+  // pub_cluster3 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_3", 1);
+  // pub_cluster4 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_4", 1);
+  // pub_cluster5 = nh.advertise<sensor_msgs::msg::PointCloud2>("cluster_5", 1);
+  // // Subscribe to the clustered pointclouds
+  // // ros::Subscriber c1=nh.subscribe("ccs",100,KFT);
+  // objID_pub = nh.advertise<std_msgs::msg::Int32MultiArray>("obj_id", 1);
+  // /* Point cloud clustering
+  //  */
 
-  ros::spin();
+  // // cc_pos=nh.advertise<std_msgs::Float32MultiArray>("ccs",100);//clusterCenter1
+  // markerPub = nh.advertise<visualization_msgs::msg::MarkerArray>("viz", 1);
+
+  // /* Point cloud clustering
+  //  */
+
+  // rclcpp::spin();
 }

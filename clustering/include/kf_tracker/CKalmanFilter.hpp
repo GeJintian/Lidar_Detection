@@ -1,3 +1,5 @@
+#ifndef CKALMANFILTER_H
+#define CKALMANFILTER_H
 #include <iostream>
 #include <vector>
 
@@ -21,3 +23,4 @@ public:
 	vector<Vec2f> prevResult;
 
 };
+#endif

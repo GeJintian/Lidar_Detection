@@ -1,3 +1,5 @@
+#ifndef FEATUREDETECTION_H
+#define FEATUREDETECTION_H
 #include <iostream>
 #include <vector>
 #include <fstream>
@@ -34,3 +36,4 @@ protected:
 	float _rho, _theta,_ransacThres, _houghThres;
 	
 };
+#endif
