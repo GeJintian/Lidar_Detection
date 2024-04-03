@@ -1013,8 +1013,19 @@ void PatchWorkpp<PointT>::callbackCloud(const sensor_msgs::msg::PointCloud2::Con
     Eigen::Affine3f transform_1=Eigen::Affine3f::Identity();
     transform_1.translation()<<0.0,0.0,0.0;
     transform_1.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitY()));
+    pcl::PointCloud<PointT> pc_transformed;
+    pcl::transformPointCloud(pc_read,pc_transformed,transform_1);
+
     pcl::PointCloud<PointT> pc_curr;
-    pcl::transformPointCloud(pc_read,pc_curr,transform_1);
+
+    for (const auto& point : pc_transformed)
+    {
+        if (point.z>3||point.z<-1)
+        {
+            continue;
+        }
+        pc_curr.push_back(point);
+    }
 
     estimate_ground(pc_curr, pc_ground, pc_non_ground, time_taken);
     if(display_time_){
@@ -1022,7 +1033,7 @@ void PatchWorkpp<PointT>::callbackCloud(const sensor_msgs::msg::PointCloud2::Con
             << " (running_time: " << time_taken << " sec)" << "\033[0m");
     }
 
-    pub_cloud->publish(cloud2msg(pc_curr, cloud_msg->header.stamp, cloud_msg->header.frame_id));
+    pub_cloud->publish(cloud2msg(pc_transformed, cloud_msg->header.stamp, cloud_msg->header.frame_id));
     pub_ground->publish(cloud2msg(pc_ground, cloud_msg->header.stamp, cloud_msg->header.frame_id));
     pub_non_ground->publish(cloud2msg(pc_non_ground, cloud_msg->header.stamp, cloud_msg->header.frame_id));
 }

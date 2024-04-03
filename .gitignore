@@ -7,3 +7,5 @@ __pycache__/
 lib/
 data/
 *.csv
+*.png
+*.json

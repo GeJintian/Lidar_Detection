@@ -15,7 +15,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        DeclareLaunchArgument('cloud_topic', default_value="/sensor/lidar_right/points"),
+        DeclareLaunchArgument('cloud_topic', default_value="/sensor/lidar_front/points"),
         
         Node(
             package='patchworkpp',
@@ -23,8 +23,8 @@ def generate_launch_description():
             name='ground_segmentation',
             output='screen',
             parameters=[
-                {'cloud_topic': '/sensor/lidar_right/points'}, # Input pointcloud
-                {'frame_id': 'laser_data_frame'},
+                {'cloud_topic': '/sensor/lidar_front/points'}, # Input pointcloud
+                {'frame_id': 'laser_frame'},
                 {'sensor_height': 1.88},
                 {'num_iter': 3},             # Number of iterations for ground plane estimation using PCA.
                 {'num_lpr': 20},             # Maximum number of points to be selected as lowest points representative.

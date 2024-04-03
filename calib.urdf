@@ -1,0 +1,87 @@
+<robot name="vehicle">
+  <link name="camera_bl"/>
+  <joint name="camera_bl" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="camera_bl"/>
+    <origin xyz="0.0666022640841149 -0.07191983402396644 -0.8038605249925608" rpy="3.130928216112435 -1.011104185590057 -3.125761138338597"/>
+  </joint>
+  <link name="camera_br"/>
+  <joint name="camera_br" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="camera_br"/>
+    <origin xyz="0.31508974933092165 -0.06844881308276969 -0.7975914385409487" rpy="3.033367386883447 1.136790350587281 3.091039069129502"/>
+  </joint>
+  <link name="camera_fl"/>
+  <joint name="camera_fl" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="camera_fl"/>
+    <origin xyz="-0.07244872559411293 0.002740095394655168 -0.4815423938804117" rpy="0.054676777224247054 -1.0978329300587952 -0.013890888636851888"/>
+  </joint>
+  <link name="camera_fr"/>
+  <joint name="camera_fr" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="camera_fr"/>
+    <origin xyz="0.42413895196331647 -0.0008785938891177506 -0.46606305691530636" rpy="0.01650129586983895 1.0156323899987645 -0.015457555513694873"/>
+  </joint>
+  <link name="camera_r"/>
+  <joint name="camera_r" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="camera_r"/>
+    <origin xyz="0.3079851622899553 0.3031765694838296 -3.2213237367328937" rpy="3.065145406736228 0.030613633447746702 -3.1391999245331332"/>
+  </joint>
+  <link name="camera_zl"/>
+  <link name="camera_zr"/>
+  <joint name="camera_zr" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="camera_zr"/>
+    <origin xyz="0.3181843459957608 -0.0022540728801366413 0.016073697009145797" rpy="-0.04337562099208518 -0.10313619847316202 -0.004320097924958878"/>
+  </joint>
+  <link name="vehicle"/>
+  <joint name="vehicle" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="vehicle"/>
+    <origin xyz="0.26711147670816693 0.752403188145766 -2.2926900679624875" rpy="-1.8178998570948341 -1.524995337811489 -2.9007309812753688"/>
+  </joint>
+  <link name="lidar_front"/>
+  <joint name="lidar_front" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="lidar_front"/>
+    <origin xyz="0.11156371743249438 -0.015148333508697098 -0.10643051836532358" rpy="0.048645729083959824 0.031505277472651416 -1.5728420649351478"/>
+  </joint>
+  <link name="lidar_left"/>
+  <joint name="lidar_left" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="lidar_left"/>
+    <origin xyz="0.05473934211418374 -0.2372464311776421 -0.6578870124268912" rpy="2.143873331795305 -0.003605912968916103 -1.5671401905346867"/>
+  </joint>
+  <link name="lidar_right"/>
+  <joint name="lidar_right" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="lidar_right"/>
+    <origin xyz="0.16838809275080502 -0.2372464311776421 -0.6578870124268912" rpy="-2.143873331795305 -0.003605912968916103 -1.5744524630551062"/>
+  </joint>
+  <link name="radar_front"/>
+  <joint name="radar_front" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="radar_front"/>
+    <origin xyz="0.13748894836135211 -0.08421185553644966 -0.3474210084773697" rpy="1.5572725277007355 -0.048893975755332164 -0.008915615258628964"/>
+  </joint>
+  <link name="radar_left"/>
+  <joint name="radar_left" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="radar_left"/>
+    <origin xyz="0.058702781488714884 0.008377072495749094 -0.37647726942386783" rpy="-1.914662121011925 -1.5282418896055323 -2.800426427824062"/>
+  </joint>
+  <link name="radar_right"/>
+  <joint name="radar_right" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="radar_right"/>
+    <origin xyz="0.30545587935186047 -0.009719793696323697 -0.3876668640506817" rpy="1.7957432523299284 1.5212984965167347 0.21575083611060633"/>
+  </joint>
+  <link name="radar_back"/>
+  <joint name="radar_back" type="fixed">
+    <parent link="camera_zl"/>
+    <child link="radar_back"/>
+    <origin xyz="0.32483836151806866 0.3956804112991841 -3.1568597714353963" rpy="-1.5936611005990984 0.053218225749967596 -3.1403390858259437"/>
+  </joint>
+</robot>
