@@ -13,7 +13,7 @@ public:
     : Node("lidar_subscriber")
     {
         subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "/sensor/lidar_right/points", 1, std::bind(&LiDARSubscriber::topic_callback, this, std::placeholders::_1));
+            "/nonground", 1, std::bind(&LiDARSubscriber::topic_callback, this, std::placeholders::_1));
     }
     int count = 0;
 private:
@@ -21,13 +21,13 @@ private:
     {
         // RCLCPP_INFO(this->get_logger(), "Received a point cloud");
         // // visualizeWithPCLOnly(msg);
-        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::fromROSMsg(*msg, *cloud);
         stringstream ss;
         ss << setw(9)<<setfill('0')<<count;
         string str;
         ss>>str;
-        string name = "../data/03_21/lidar_right/"+str + ".pcd";
+        string name = "../data/03_21/non_ground/"+str + ".pcd";
         pcl::io::savePCDFileASCII(name,*cloud);
         // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
         // pcl::fromROSMsg(*msg, *cloud);

@@ -11,6 +11,10 @@ find_package(pcl_conversions REQUIRED)
 find_package(PCL REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 #find_package(geometry_msgs REQUIRED)
 
 MESSAGE("OPENCV VERSION:")
@@ -59,13 +63,16 @@ add_executable(kf_tracking src/kf_tracker/tracker.cpp)
 ament_target_dependencies(kf_tracking rclcpp sensor_msgs PCL pcl_conversions OpenCV visualization_msgs)
 target_link_libraries(kf_tracking ${PROJECT_NAME})
 
+add_executable(merge_node src/merge_node.cpp)
+ament_target_dependencies(merge_node rclcpp tf2 tf2_ros tf2_geometry_msgs pcl_conversions PCL sensor_msgs)
+
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
 
-install(TARGETS dbscan_cluster kf_tracking
+install(TARGETS dbscan_cluster kf_tracking merge_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
