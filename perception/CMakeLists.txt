@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(patchworkpp)
+project(perception)
 add_compile_options(-std=c++17)
 set(CMAKE_BUILD_TYPE "Release")
 
@@ -51,22 +51,25 @@ ${sensor_msgs_LIBRARIES}
 ${rclcpp_components_LIBRARIES})
 
 
-add_executable(demo src/demo.cpp)
-target_link_libraries(demo ${LIBS} ${PCL_LIBRARIES})
+add_executable(patchworkpp src/demo.cpp)
+target_link_libraries(patchworkpp ${LIBS} ${PCL_LIBRARIES})
 
-add_library(patchworkpp SHARED src/patchworkpp.cpp)
-target_compile_definitions(patchworkpp PUBLIC "PATCHWORKPP_COMPOSITION_BUILDING_DLL")
-target_link_libraries(patchworkpp ${LIBS})
+add_library(${PROJECT_NAME} SHARED 
+src/patchworkpp.cpp
+)
+
+target_compile_definitions(${PROJECT_NAME} PUBLIC "PATCHWORKPP_COMPOSITION_BUILDING_DLL")
+target_link_libraries(${PROJECT_NAME} ${LIBS})
 
 install(TARGETS
-patchworkpp
+${PROJECT_NAME}
 ARCHIVE DESTINATION lib
 LIBRARY DESTINATION lib
 RUNTIME DESTINATION bin
 )
 
 # ==== Install ====
-install(TARGETS demo
+install(TARGETS patchworkpp
 ARCHIVE
 LIBRARY
 RUNTIME
@@ -85,3 +88,4 @@ ament_export_dependencies(std_msgs)
 ament_export_dependencies(sensor_msgs)
 ament_export_include_directories(${INCLUDE_DIRS})
 ament_package()
+

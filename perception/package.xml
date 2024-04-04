@@ -1,10 +1,10 @@
 <?xml version='1.0' encoding='utf-8'?>
 <package format="3">
-  <name>patchworkpp</name>
+  <name>perception</name>
   <version>0.0.0</version>
-  <description>patchwork++ package</description>
+  <description>perception package for a2rl</description>
 
-  <maintainer email="sj98lee@kaist.ac.kr">Seungjae Lee</maintainer>
+  <maintainer email="jintian.ge@qq.com">Jintian Ge</maintainer>
   <license>TODO</license>
   <build_depend>ros_environment</build_depend>
   <buildtool_depend>ament_cmake</buildtool_depend>
