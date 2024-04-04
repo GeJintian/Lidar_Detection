@@ -46,74 +46,67 @@ public:
 private:
     void front_pointsCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
     {   
-        if(count_front) return;
-        pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-        pcl::fromROSMsg(*msg, *temp_cloud);
-        pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-        pcl::transformPointCloud(*temp_cloud, *transformed_cloud, T_front);
-        *merged_cloud_ += *transformed_cloud;
+        if(count_front) {
+            front_cloud->clear();
+            pcl::fromROSMsg(*msg, *front_cloud);
+        }
+        else{
+            pcl::fromROSMsg(*msg, *front_cloud);
+            count_front = true;
+        }
         count_front = true;
         if(count_front && count_left && count_right){
-            sensor_msgs::msg::PointCloud2 output;
-            pcl::toROSMsg(*merged_cloud_, output);
-            output.header.frame_id = "map";
-            publisher_->publish(output);
-            merged_cloud_->clear();
-            count_front = false;
-            count_left = false;
-            count_right = false;
+            publish();
         }
     }
     void left_pointsCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
     {   
-        if(count_left) return;
-        pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-        pcl::fromROSMsg(*msg, *temp_cloud);
-        pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-        pcl::transformPointCloud(*temp_cloud, *transformed_cloud, T_left);
-        *merged_cloud_ += *transformed_cloud;
+        if(count_left) {
+            left_cloud->clear();
+            pcl::fromROSMsg(*msg, *left_cloud);
+        }
+        else{
+            pcl::fromROSMsg(*msg, *left_cloud);
+            count_left = true;
+        }
         count_left = true;
         if(count_front && count_left && count_right){
-            sensor_msgs::msg::PointCloud2 output;
-            pcl::toROSMsg(*merged_cloud_, output);
-            output.header.frame_id = "map";
-            publisher_->publish(output);
-            merged_cloud_->clear();
-            count_front = false;
-            count_left = false;
-            count_right = false;
+            publish();
         }
     }
     void right_pointsCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
     {   
-        if(count_right) {return;}
+        if(count_right) {
+            right_cloud->clear();
+            pcl::fromROSMsg(*msg, *right_cloud);
+        }
         else{
-            pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-            pcl::fromROSMsg(*msg, *temp_cloud);
-            pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-            pcl::transformPointCloud(*temp_cloud, *transformed_cloud, T_right);
-            *merged_cloud_ += *transformed_cloud;
+            pcl::fromROSMsg(*msg, *right_cloud);
+            count_right = true;
         }
         count_right = true;
         if(count_front && count_left && count_right){
-            sensor_msgs::msg::PointCloud2 output;
-            pcl::toROSMsg(*merged_cloud_, output);
-            output.header.frame_id = "map";
-            publisher_->publish(output);
-            merged_cloud_->clear();
-            count_front = false;
-            count_left = false;
-            count_right = false;
+            publish();
         }
     }
     void publish(){
-
-        
+        pcl::PointCloud<pcl::PointXYZ>::Ptr merged_cloud_(new pcl::PointCloud<pcl::PointXYZ>());
+        pcl::PointCloud<pcl::PointXYZ>::Ptr f_transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>());
+        pcl::PointCloud<pcl::PointXYZ>::Ptr l_transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>());
+        pcl::PointCloud<pcl::PointXYZ>::Ptr r_transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>());
+        pcl::transformPointCloud(*right_cloud, *r_transformed_cloud, T_right);
+        *merged_cloud_ += *r_transformed_cloud;
+        pcl::transformPointCloud(*left_cloud, *l_transformed_cloud, T_left);
+        *merged_cloud_ += *l_transformed_cloud;
+        pcl::transformPointCloud(*front_cloud, *f_transformed_cloud, T_front);
+        *merged_cloud_ += *f_transformed_cloud;
         sensor_msgs::msg::PointCloud2 output;
         pcl::toROSMsg(*merged_cloud_, output);
         output.header.frame_id = "map";
         publisher_->publish(output);
-        merged_cloud_->clear();
+        front_cloud->clear();
+        left_cloud->clear();
+        right_cloud->clear();
         count_front = false;
         count_left = false;
         count_right = false;
@@ -133,7 +126,9 @@ private:
     Eigen::Matrix4d T_left = createTransformationMatrix(rpy_left,xyz_left);
     Eigen::Matrix4d T_right = createTransformationMatrix(rpy_right,xyz_right);
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr merged_cloud_{new pcl::PointCloud<pcl::PointXYZ>()};
+    pcl::PointCloud<pcl::PointXYZ>::Ptr front_cloud{new pcl::PointCloud<pcl::PointXYZ>()};
+    pcl::PointCloud<pcl::PointXYZ>::Ptr left_cloud{new pcl::PointCloud<pcl::PointXYZ>()};
+    pcl::PointCloud<pcl::PointXYZ>::Ptr right_cloud{new pcl::PointCloud<pcl::PointXYZ>()};
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_front_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_left_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_right_;
