@@ -21,6 +21,15 @@
 #include <patchworkpp/utils.hpp>
 #include "rclcpp_components/register_node_macro.hpp"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
+#include <cmath>
+#include <algorithm>
+#include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/segmentation/extract_clusters.h>
 
 #define MARKER_Z_VALUE -2.2
 #define UPRIGHT_ENOUGH 0.55
@@ -29,6 +38,12 @@
 #define TOO_TILTED 1.0
 
 #define NUM_HEURISTIC_MAX_PTS_IN_PATCH 3000
+
+#define ANGLE_RES 0.1
+#define SEARCH_RANGE 180
+#define Z_LOWER_BOUND -0.1
+#define Z_UPPER_BOUND 2
+#define SELF_BOUND 5
 
 using Eigen::MatrixXf;
 using Eigen::JacobiSVD;
@@ -189,6 +204,8 @@ public:
             ConcentricZoneModel_.push_back(z);
         }
 
+        pub_curbside = Node::create_publisher<sensor_msgs::msg::PointCloud2>("curbside", 100);
+
         pub_cloud = Node::create_publisher<sensor_msgs::msg::PointCloud2>("cloud", 100);
         pub_ground = Node::create_publisher<sensor_msgs::msg::PointCloud2>("ground", 100);
         pub_non_ground = Node::create_publisher<sensor_msgs::msg::PointCloud2>("nonground", 100);
@@ -198,6 +215,8 @@ public:
     };
 
     void estimate_ground(pcl::PointCloud<PointT> cloud_in, pcl::PointCloud<PointT> &cloud_ground, pcl::PointCloud<PointT> &cloud_nonground, double &time_taken);
+
+    void extract_curbside(const pcl::PointCloud<PointT> &cloud_in, pcl::PointCloud<PointT> &cloud_curb);
 
 
 private:
@@ -261,7 +280,7 @@ private:
     vector<Zone> ConcentricZoneModel_;
 
     // ros::Publisher PlaneViz, 
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_revert_pc, pub_reject_pc, pub_normal, pub_noise, pub_vertical, pub_cloud, pub_ground, pub_non_ground;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_revert_pc, pub_reject_pc, pub_normal, pub_noise, pub_vertical, pub_cloud, pub_ground, pub_non_ground, pub_curbside;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_cloud;
     OnSetParametersCallbackHandle::SharedPtr callback_handle_;
     pcl::PointCloud<PointT> revert_pc_, reject_pc_, noise_pc_, vertical_pc_;
@@ -542,6 +561,82 @@ rcl_interfaces::msg::SetParametersResult PatchWorkpp<PointT>::parametersCallback
     PointCloud SensorMsg -> Pointcloud -> z-value sorted Pointcloud
     ->error points removal -> extract ground seeds -> ground plane fit mainloop
 */
+
+// Functions for extract curbside
+template<typename PointT> inline
+void PatchWorkpp<PointT>::extract_curbside(const pcl::PointCloud<PointT> &cloud_in, pcl::PointCloud<PointT> &cloud_curb){
+    cloud_curb.clear();
+    // pcl::PointCloud<PointT> cloud_filtered;
+
+    pcl::PointCloud<PointT> cloud_filtered;
+    pcl::PointCloud<PointT> cloud_temp;
+    pcl::PointCloud<PointT> cloud_final;
+
+
+
+    for (const auto& point : cloud_in) {
+    if (point.z >= Z_LOWER_BOUND && point.z <= Z_UPPER_BOUND && point.y*point.y+point.x*point.x > SELF_BOUND*SELF_BOUND && point.y > 0 && point.y < 100 && point.x > -50 && point.x < 50) {
+        cloud_temp.push_back(point);
+    }
+    }
+
+    pcl::VoxelGrid<PointT> sor;
+    sor.setInputCloud(cloud_temp.makeShared());
+    sor.setLeafSize(0.1f, 0.1f, 0.05f);
+    sor.filter(cloud_final);
+
+    typename pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
+    tree->setInputCloud(cloud_final.makeShared());
+
+    std::vector<pcl::PointIndices> cluster_indices;
+    pcl::EuclideanClusterExtraction<PointT> ec;
+    ec.setClusterTolerance(0.3);
+    ec.setMinClusterSize(50);
+    ec.setSearchMethod(tree);
+    ec.setInputCloud(cloud_final.makeShared());
+    ec.extract(cluster_indices);
+
+    for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
+    {
+        for (const auto& idx : it->indices)
+            cloud_filtered.push_back((cloud_final)[idx]);
+
+        cloud_filtered.width = cloud_filtered.size();
+        cloud_filtered.height = 1;
+        cloud_filtered.is_dense = true;
+    }
+
+    int bin_num = std::floor(SEARCH_RANGE / ANGLE_RES);
+    
+    std::vector<std::vector<PointT>> bins(bin_num);
+    
+    for (const auto& point : cloud_filtered) {
+        //if (point.z >= Z_LOWER_BOUND && point.z <= Z_UPPER_BOUND && point.y*point.y+point.x*point.x > SELF_BOUND*SELF_BOUND) {
+            //double angleRadians = std::atan2(point.y, point.x); // x-axis search
+            double angleRadians = std::atan2(point.y, point.x);
+            double angleDegrees = angleRadians * (180.0 / M_PI);
+            angleDegrees = fmod(angleDegrees + 360.0, 360.0);
+            //if (angleDegrees > 180.0) angleDegrees -= 360.0;
+            if (angleDegrees < SEARCH_RANGE) {
+                int idx = std::floor((angleDegrees) / ANGLE_RES);
+                if (idx >= 0 && idx < bin_num) {
+                    bins[idx].push_back(point);
+                }
+            }
+        //}
+    }
+    
+    for (int idx = 0; idx < bin_num; ++idx) {
+        if (!bins[idx].empty()) {
+            auto min_it = std::min_element(bins[idx].begin(), bins[idx].end(),
+                [](const PointT& a, const PointT& b) {
+                    return (a.x * a.x + a.y * a.y) < (b.x * b.x + b.y * b.y);
+                });
+            cloud_curb.push_back(*min_it);
+        }
+    }
+}
+
 
 template<typename PointT> inline
 void PatchWorkpp<PointT>::estimate_ground(
@@ -1006,13 +1101,14 @@ void PatchWorkpp<PointT>::callbackCloud(const sensor_msgs::msg::PointCloud2::Con
     pcl::PointCloud<PointT> pc_read;
     pcl::PointCloud<PointT> pc_ground;
     pcl::PointCloud<PointT> pc_non_ground;
+    pcl::PointCloud<PointT> pc_curbside;
 
     pcl::fromROSMsg(*cloud_msg, pc_read);
     //TODO: Consider delete this step
     float theta = -M_PI/2;
     Eigen::Affine3f transform_1=Eigen::Affine3f::Identity();
     transform_1.translation()<<0.0,0.0,0.0;
-    transform_1.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitY()));
+    transform_1.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitX()));
     pcl::PointCloud<PointT> pc_transformed;
     pcl::transformPointCloud(pc_read,pc_transformed,transform_1);
 
@@ -1033,6 +1129,9 @@ void PatchWorkpp<PointT>::callbackCloud(const sensor_msgs::msg::PointCloud2::Con
             << " (running_time: " << time_taken << " sec)" << "\033[0m");
     }
 
+    extract_curbside(pc_non_ground,pc_curbside);
+
+    pub_curbside->publish(cloud2msg(pc_curbside,cloud_msg->header.stamp, cloud_msg->header.frame_id));
     pub_cloud->publish(cloud2msg(pc_transformed, cloud_msg->header.stamp, cloud_msg->header.frame_id));
     pub_ground->publish(cloud2msg(pc_ground, cloud_msg->header.stamp, cloud_msg->header.frame_id));
     pub_non_ground->publish(cloud2msg(pc_non_ground, cloud_msg->header.stamp, cloud_msg->header.frame_id));
