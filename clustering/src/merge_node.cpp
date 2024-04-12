@@ -9,6 +9,14 @@
 #include <Eigen/Geometry>
 #include <pcl/common/transforms.h>
 
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <pcl/filters/filter.h> 
+#include "pcl/filters/impl/filter.hpp"
+
+#define LIDAR_FILTER_ANGLE 52
+
 
 Eigen::Matrix3d rpyToRotationMatrix(double roll, double pitch, double yaw) {
     Eigen::AngleAxisd rollAngle(roll, Eigen::Vector3d::UnitX());
@@ -40,7 +48,8 @@ public:
         subscription_right_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             "/sensor/lidar_right/points", 10, std::bind(&LidarFusionNode::right_pointsCallback, this, std::placeholders::_1));
         
-        publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fused_points", 10);
+        publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/velodyne_points", 10);
+
     }
 
 private:
@@ -48,12 +57,21 @@ private:
     {   
         if(count_front) {
             front_cloud->clear();
-            pcl::fromROSMsg(*msg, *front_cloud);
         }
-        else{
-            pcl::fromROSMsg(*msg, *front_cloud);
-            count_front = true;
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
+        pcl::fromROSMsg(*msg, *cloud);
+
+        for (const auto& point : *cloud) {
+            double azimuth = std::atan2(point.y, point.z);
+
+            double min_angle_rad = -LIDAR_FILTER_ANGLE * (M_PI / 180.0);
+            double max_angle_rad = LIDAR_FILTER_ANGLE * (M_PI / 180.0);
+
+            if (azimuth >= min_angle_rad && azimuth <= max_angle_rad) {
+                front_cloud->push_back(point);
+            }
         }
+
         count_front = true;
         if(count_front && count_left && count_right){
             publish();
@@ -63,12 +81,20 @@ private:
     {   
         if(count_left) {
             left_cloud->clear();
-            pcl::fromROSMsg(*msg, *left_cloud);
         }
-        else{
-            pcl::fromROSMsg(*msg, *left_cloud);
-            count_left = true;
-        }
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
+        pcl::fromROSMsg(*msg, *left_cloud);
+
+        // for (const auto& point : *cloud) {
+        //     double azimuth = std::atan2(point.y, point.z);
+
+        //     double min_angle_rad = -LIDAR_FILTER_ANGLE * (M_PI / 180.0);
+        //     double max_angle_rad = LIDAR_FILTER_ANGLE * (M_PI / 180.0);
+
+        //     if (azimuth >= min_angle_rad && azimuth <= max_angle_rad) {
+        //         left_cloud->push_back(point);
+        //     }
+        // }
         count_left = true;
         if(count_front && count_left && count_right){
             publish();
@@ -78,28 +104,45 @@ private:
     {   
         if(count_right) {
             right_cloud->clear();
-            pcl::fromROSMsg(*msg, *right_cloud);
         }
-        else{
-            pcl::fromROSMsg(*msg, *right_cloud);
-            count_right = true;
-        }
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
+        pcl::fromROSMsg(*msg, *right_cloud);
+
+        // for (const auto& point : *cloud) {
+        //     double azimuth = std::atan2(point.y, point.z);
+
+        //     double min_angle_rad = -LIDAR_FILTER_ANGLE * (M_PI / 180.0);
+        //     double max_angle_rad = LIDAR_FILTER_ANGLE * (M_PI / 180.0);
+
+        //     if (azimuth >= min_angle_rad && azimuth <= max_angle_rad) {
+        //         right_cloud->push_back(point);
+        //     }
+        // }
         count_right = true;
         if(count_front && count_left && count_right){
             publish();
         }
     }
     void publish(){
-        pcl::PointCloud<pcl::PointXYZ>::Ptr merged_cloud_(new pcl::PointCloud<pcl::PointXYZ>());
-        pcl::PointCloud<pcl::PointXYZ>::Ptr f_transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-        pcl::PointCloud<pcl::PointXYZ>::Ptr l_transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-        pcl::PointCloud<pcl::PointXYZ>::Ptr r_transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-        pcl::transformPointCloud(*right_cloud, *r_transformed_cloud, T_right);
-        *merged_cloud_ += *r_transformed_cloud;
+        pcl::PointCloud<pcl::PointXYZI>::Ptr merged_cloud_(new pcl::PointCloud<pcl::PointXYZI>());
+        pcl::PointCloud<pcl::PointXYZI>::Ptr f_transformed_cloud(new pcl::PointCloud<pcl::PointXYZI>());
+        pcl::PointCloud<pcl::PointXYZI>::Ptr l_transformed_cloud(new pcl::PointCloud<pcl::PointXYZI>());
+        pcl::PointCloud<pcl::PointXYZI>::Ptr r_transformed_cloud(new pcl::PointCloud<pcl::PointXYZI>());
+        pcl::PointCloud<pcl::PointXYZI>::Ptr ll_transformed_cloud(new pcl::PointCloud<pcl::PointXYZI>());
+        pcl::PointCloud<pcl::PointXYZI>::Ptr rr_transformed_cloud(new pcl::PointCloud<pcl::PointXYZI>());
+        if(right_cloud->size()>0){
+            pcl::transformPointCloud(*right_cloud, *r_transformed_cloud, T_right);
+            pcl::transformPointCloud(*r_transformed_cloud, *rr_transformed_cloud, T_front);
+            *merged_cloud_ += *rr_transformed_cloud;
+        }
+        if(left_cloud->size()>0){
         pcl::transformPointCloud(*left_cloud, *l_transformed_cloud, T_left);
-        *merged_cloud_ += *l_transformed_cloud;
+        pcl::transformPointCloud(*l_transformed_cloud, *ll_transformed_cloud, T_front);
+        *merged_cloud_ += *ll_transformed_cloud;}
+        if(front_cloud->size()>0){
         pcl::transformPointCloud(*front_cloud, *f_transformed_cloud, T_front);
-        *merged_cloud_ += *f_transformed_cloud;
+        *merged_cloud_ += *f_transformed_cloud;}
+
         sensor_msgs::msg::PointCloud2 output;
         pcl::toROSMsg(*merged_cloud_, output);
         output.header.frame_id = "map";
@@ -113,12 +156,12 @@ private:
     }
 
     //Settings from urdf
-    Eigen::Vector3d rpy_front = Eigen::Vector3d(0.048645729083959824, 0.031505277472651416, -1.5728420649351478);
-    Eigen::Vector3d xyz_front = Eigen::Vector3d(0.11156371743249438, -0.015148333508697098, -0.10643051836532358);
-    Eigen::Vector3d rpy_left = Eigen::Vector3d(2.143873331795305, -0.003605912968916103, -1.5671401905346867);
-    Eigen::Vector3d xyz_left = Eigen::Vector3d(0.05473934211418374, -0.2372464311776421, -0.6578870124268912);
-    Eigen::Vector3d rpy_right = Eigen::Vector3d(-2.143873331795305, -0.003605912968916103, -1.5744524630551062);
-    Eigen::Vector3d xyz_right = Eigen::Vector3d(0.16838809275080502, -0.2372464311776421, -0.6578870124268912);
+    Eigen::Vector3d rpy_front = Eigen::Vector3d(3.14, -1.62, 0);
+    Eigen::Vector3d xyz_front = Eigen::Vector3d(0.63, 0, 0.61);
+    Eigen::Vector3d rpy_left = Eigen::Vector3d(2.10, -0.07, 0);
+    Eigen::Vector3d xyz_left = Eigen::Vector3d(0.071, -0.19, -0.66);
+    Eigen::Vector3d rpy_right = Eigen::Vector3d(-2.10, -0.07, 0);
+    Eigen::Vector3d xyz_right = Eigen::Vector3d(0.071, 0.19, -0.66);
     bool count_left = false;
     bool count_right = false;
     bool count_front = false;
@@ -126,13 +169,14 @@ private:
     Eigen::Matrix4d T_left = createTransformationMatrix(rpy_left,xyz_left);
     Eigen::Matrix4d T_right = createTransformationMatrix(rpy_right,xyz_right);
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr front_cloud{new pcl::PointCloud<pcl::PointXYZ>()};
-    pcl::PointCloud<pcl::PointXYZ>::Ptr left_cloud{new pcl::PointCloud<pcl::PointXYZ>()};
-    pcl::PointCloud<pcl::PointXYZ>::Ptr right_cloud{new pcl::PointCloud<pcl::PointXYZ>()};
+    pcl::PointCloud<pcl::PointXYZI>::Ptr front_cloud{new pcl::PointCloud<pcl::PointXYZI>()};
+    pcl::PointCloud<pcl::PointXYZI>::Ptr left_cloud{new pcl::PointCloud<pcl::PointXYZI>()};
+    pcl::PointCloud<pcl::PointXYZI>::Ptr right_cloud{new pcl::PointCloud<pcl::PointXYZI>()};
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_front_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_left_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_right_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher_;
+    //rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
 };
 
 int main(int argc, char **argv)

@@ -15,10 +15,19 @@ find_package(ament_index_cpp REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 #find_package(geometry_msgs REQUIRED)
 
 MESSAGE("OPENCV VERSION:")
 MESSAGE(${OpenCV_VERSION})
+
+# if(NOT CMAKE_BUILD_TYPE)
+#   set(CMAKE_BUILD_TYPE Release)
+# endif()
+
+# set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+# set(CMAKE_CXX_FLAGS_DEBUG "-g")
+# set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 include_directories(
 ${PROJECT_SOURCE_DIR}
@@ -64,7 +73,7 @@ ament_target_dependencies(kf_tracking rclcpp sensor_msgs PCL pcl_conversions Ope
 target_link_libraries(kf_tracking ${PROJECT_NAME})
 
 add_executable(merge_node src/merge_node.cpp)
-ament_target_dependencies(merge_node rclcpp tf2 tf2_ros tf2_geometry_msgs pcl_conversions PCL sensor_msgs)
+ament_target_dependencies(merge_node rclcpp tf2 tf2_ros tf2_geometry_msgs pcl_conversions PCL sensor_msgs geometry_msgs)
 
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION lib

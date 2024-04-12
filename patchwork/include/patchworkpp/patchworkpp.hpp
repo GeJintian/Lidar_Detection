@@ -575,7 +575,7 @@ void PatchWorkpp<PointT>::extract_curbside(const pcl::PointCloud<PointT> &cloud_
 
 
     for (const auto& point : cloud_in) {
-    if (point.z >= Z_LOWER_BOUND && point.z <= Z_UPPER_BOUND && point.y*point.y+point.x*point.x > SELF_BOUND*SELF_BOUND && point.y > 0 && point.y < 100 && point.x > -50 && point.x < 50) {
+    if (point.z >= Z_LOWER_BOUND && point.z <= Z_UPPER_BOUND && point.y*point.y+point.x*point.x > SELF_BOUND*SELF_BOUND && point.x > 0 && point.x < 100 && point.y > -50 && point.y < 50) {
         cloud_temp.push_back(point);
     }
     }
@@ -1102,15 +1102,16 @@ void PatchWorkpp<PointT>::callbackCloud(const sensor_msgs::msg::PointCloud2::Con
     pcl::PointCloud<PointT> pc_ground;
     pcl::PointCloud<PointT> pc_non_ground;
     pcl::PointCloud<PointT> pc_curbside;
-
-    pcl::fromROSMsg(*cloud_msg, pc_read);
-    //TODO: Consider delete this step
-    float theta = -M_PI/2;
-    Eigen::Affine3f transform_1=Eigen::Affine3f::Identity();
-    transform_1.translation()<<0.0,0.0,0.0;
-    transform_1.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitX()));
     pcl::PointCloud<PointT> pc_transformed;
-    pcl::transformPointCloud(pc_read,pc_transformed,transform_1);
+
+    pcl::fromROSMsg(*cloud_msg, pc_transformed);
+    // //TODO: Consider delete this step
+    // float theta = -M_PI/2;
+    // Eigen::Affine3f transform_1=Eigen::Affine3f::Identity();
+    // transform_1.translation()<<0.0,0.0,0.0;
+    // transform_1.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitX()));
+
+    // pcl::transformPointCloud(pc_read,pc_transformed,transform_1);
 
     pcl::PointCloud<PointT> pc_curr;
 
