@@ -1,26 +1,61 @@
-cmake_minimum_required(VERSION 3.8)
-project(detection)
+cmake_minimum_required(VERSION 3.22)
 
+set(CMAKE_CXX_STANDARD 20)
+
+project(detection
+  DESCRIPTION "detection module"
+  VERSION 0.0.1
+  LANGUAGES CXX 
+)
+
+# Enforce compiler flags for certain compilers
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(PCL REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(a2rl_bs_msgs REQUIRED)
+find_package(message_filters REQUIRED)
+find_package(pcl_ros REQUIRED)
+# find_package(Ceres REQUIRED)
 
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # comment the line when a copyright and license is added to all source files
-  set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
-  set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
+include_directories(
+${PROJECT_SOURCE_DIR}
+${PROJECT_SOURCE_DIR}/include
+${PCL_INCLUDE_DIRS}
+${pcl_conversions_INCLUDE_DIRS}
+${OpenCV_INCLUDE_DIRS}
+${rclcpp_INCLUDE_DIRS}
+${geometry_msgs_INCLUDE_DIRS}
+# ${CERES_INCLUDE_DIRS}
+)
+
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
+add_executable(radar_fusion_node src/radar_fusion_node.cpp)
+ament_target_dependencies(radar_fusion_node rclcpp rclcpp_components tf2 tf2_ros tf2_geometry_msgs pcl_conversions PCL sensor_msgs geometry_msgs)
+target_link_libraries(radar_fusion_node ${PCL_LIBRARIES})
+
+add_executable(detection_node src/detection_node.cpp src/detection.cpp src/fusion_function.cpp)
+ament_target_dependencies(detection_node rclcpp rclcpp_components tf2 tf2_ros tf2_geometry_msgs pcl_conversions PCL sensor_msgs geometry_msgs OpenCV a2rl_bs_msgs)
+target_link_libraries(detection_node ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
+
+install(TARGETS radar_fusion_node detection_node
+  ARCHIVE
+  LIBRARY
+  RUNTIME
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ament_package()
