@@ -15,6 +15,8 @@
 #include <pcl/filters/filter.h> 
 #include "pcl/filters/impl/filter.hpp"
 #include "detection/radar_type.hpp"
+#include "detection/fusion_function.hpp"
+#include "a2rl_bs_msgs/msg/vectornav_ins.hpp"
 
 #define LIDAR_FILTER_ANGLE 52
 
@@ -73,7 +75,7 @@ void confidence_filter(pcl::PointCloud<RadarPointType>::Ptr cloud_in, pcl::Point
 class RadarFusionNode : public rclcpp::Node
 {
 public:
-    RadarFusionNode() : Node("radar_fusion_node")
+    RadarFusionNode() : Node("radar_moving_node")
     {
         subscription_front_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             "/sensor/radar_front/points", 10, std::bind(&RadarFusionNode::front_pointsCallback, this, std::placeholders::_1));
@@ -84,11 +86,15 @@ public:
         subscription_back_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             "/sensor/radar_back/points", 10, std::bind(&RadarFusionNode::back_pointsCallback, this, std::placeholders::_1));
         
-        publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/radar_fusion_points", 10);
+        publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/dynamic_radar_points", 10);
 
+        vectornav_subscriber_ = this->create_subscription<a2rl_bs_msgs::msg::VectornavIns>("/a2rl/vn/ins", 10, std::bind(&MultiVehicleDetection::vectornav_callback, this, std::placeholders::_1));
     }
 
 private:
+    void vectornav_callback(const a2rl_bs_msgs::msg::VectornavIns::SharedPtr msg) {
+        latest_vn_msg_ = *msg;
+    }
     void front_pointsCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
     {   
         if(count_front) {
@@ -96,7 +102,9 @@ private:
         }
         pcl::PointCloud<RadarPointType>::Ptr cloud(new pcl::PointCloud<RadarPointType>);
         pcl::fromROSMsg(*msg, *cloud);
-        confidence_filter(cloud,front_cloud);
+        pcl::PointCloud<RadarPointType>::Ptr cloud_filtered(new pcl::PointCloud<RadarPointType>);
+        confidence_filter(cloud,cloud_filtered);
+        VAP(cloud_filtered, front_cloud, latest_vn_msg_.velocity_body_ins.x, latest_vn_msg_.velocity_body_ins.y);
 
         count_front = true;
         if(count_front && count_left && count_right && count_back){
@@ -110,7 +118,9 @@ private:
         }
         pcl::PointCloud<RadarPointType>::Ptr cloud(new pcl::PointCloud<RadarPointType>);
         pcl::fromROSMsg(*msg, *cloud);
-        confidence_filter(cloud, left_cloud);
+        pcl::PointCloud<RadarPointType>::Ptr cloud_filtered(new pcl::PointCloud<RadarPointType>);
+        confidence_filter(cloud,cloud_filtered);
+        VAP(cloud_filtered, left_cloud, latest_vn_msg_.velocity_body_ins.x, latest_vn_msg_.velocity_body_ins.y);
 
         count_left = true;
         if(count_front && count_left && count_right && count_back){
@@ -124,7 +134,9 @@ private:
         }
         pcl::PointCloud<RadarPointType>::Ptr cloud(new pcl::PointCloud<RadarPointType>);
         pcl::fromROSMsg(*msg, *cloud);
-        confidence_filter(cloud, right_cloud);
+        pcl::PointCloud<RadarPointType>::Ptr cloud_filtered(new pcl::PointCloud<RadarPointType>);
+        confidence_filter(cloud,cloud_filtered);
+        VAP(cloud_filtered, right_cloud, latest_vn_msg_.velocity_body_ins.x, latest_vn_msg_.velocity_body_ins.y);
 
         count_right = true;
         if(count_front && count_left && count_right && count_back){
@@ -138,7 +150,9 @@ private:
         }
         pcl::PointCloud<RadarPointType>::Ptr cloud(new pcl::PointCloud<RadarPointType>);
         pcl::fromROSMsg(*msg, *cloud);
-        confidence_filter(cloud, back_cloud);
+        pcl::PointCloud<RadarPointType>::Ptr cloud_filtered(new pcl::PointCloud<RadarPointType>);
+        confidence_filter(cloud,cloud_filtered);
+        VAP(cloud_filtered, back_cloud, latest_vn_msg_.velocity_body_ins.x, latest_vn_msg_.velocity_body_ins.y);
 
         count_back = true;
         if(count_front && count_left && count_right && count_back){
@@ -221,6 +235,8 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_back_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher_;
     
+    rclcpp::Subscription<a2rl_bs_msgs::msg::VectornavIns>::SharedPtr vectornav_subscriber_;
+    a2rl_bs_msgs::msg::VectornavIns latest_vn_msg_;
 };
 
 int main(int argc, char **argv)

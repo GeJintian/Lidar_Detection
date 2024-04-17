@@ -15,14 +15,16 @@ void CLUSTER_ASSOCIATION_KNN(std::vector<LidarClusterProperties> &lidar_cluster_
         int minIndex = -1;
         for (size_t j = 0; j < lidar_cluster_properties.size(); ++j) {
             double distance = cluster_euclideanDistance(radar_cluster_properties[i], lidar_cluster_properties[j]);
+            //std::cout<<"report distance "<<distance<<std::endl;
             if (distance < minDistance) {
                 minDistance = distance;
                 minIndex = j;
             }
         }
-        if(minDistance > MAX_ASSOCIATION_DISTANCE){
+        if(minDistance < MAX_ASSOCIATION_DISTANCE){
             associations[i] = minIndex;  // Associate the index of the closest lidar measurement
         }
+        //else std::cout<<"out of range "<<minDistance<<std::endl;
     }
 }
 
@@ -82,7 +84,7 @@ void VAP(pcl::PointCloud<RadarPointType>::Ptr cloud, pcl::PointCloud<RadarPointT
   double std_dev = std::sqrt(sq_sum / residuals.size() - mean_residual * mean_residual);
 
   for (size_t i = 0; i < residuals.size(); ++i) {
-      if (std::abs(residuals[i]) > 0.5 * std_dev) {
+      if (std::abs(residuals[i]) > std_dev) {
           outliers_indices.push_back(i);
       }
   }

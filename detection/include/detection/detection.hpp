@@ -11,6 +11,7 @@
 #include "message_filters/synchronizer.h"
 #include "message_filters/sync_policies/approximate_time.h"
 #include "a2rl_bs_msgs/msg/vectornav_ins.hpp"
+#include "a2rl_bs_msgs/msg/perception.hpp"
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/segmentation/extract_clusters.h>
@@ -28,6 +29,8 @@ private:
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::PointCloud2, sensor_msgs::msg::PointCloud2> SyncPolicy;
     typedef message_filters::Synchronizer<SyncPolicy> Sync;
 
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr vis_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr vis_radar_publisher_;
     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> sub_lidar_cloud_;
     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> sub_radar_cloud_;
     std::shared_ptr<Sync> synchronizer_;
@@ -38,5 +41,8 @@ private:
     void detection_callback(const sensor_msgs::msg::PointCloud2::ConstPtr &lidar_msg, const sensor_msgs::msg::PointCloud2::ConstPtr &radar_msg);
     void vectornav_callback(const a2rl_bs_msgs::msg::VectornavIns::SharedPtr msg);
     void clustering_filter(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_lidar, pcl::PointCloud<RadarPointType>::Ptr cloud_radar, double init_x, double init_y);
+    void topic1_callback(const sensor_msgs::msg::PointCloud2::ConstPtr &lidar_msg);
+
+    void topic2_callback(const sensor_msgs::msg::PointCloud2::ConstPtr &lidar_msg);
 };
 #endif

@@ -18,7 +18,6 @@
 #define Z_UPPER_BOUND 3
 #define SELF_BOUND 5
 #define VELOCITY_BOUND 2
-#define VEHICLE_LENGTH 5
 #define MAX_ASSOCIATION_DISTANCE 5
                                     
 
