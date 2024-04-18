@@ -1,13 +1,13 @@
 #include "detection/detection.hpp"
 using namespace std;
 
-#define VEHICLE_LENGTH 7
+#define VEHICLE_LENGTH 5
 
 MultiVehicleDetection::MultiVehicleDetection()
 : Node("detection_node")
 {
     sub_lidar_cloud_.subscribe(this, "/nonground");
-    sub_radar_cloud_.subscribe(this, "/radar_fusion_points");
+    sub_radar_cloud_.subscribe(this, "/dynamic_radar_points");
     //sub_lidar_cloud_.registerCallback(std::bind(&MultiVehicleDetection::topic1_callback, this, std::placeholders::_1));
     //sub_radar_cloud_.registerCallback(std::bind(&MultiVehicleDetection::topic2_callback, this, std::placeholders::_1));
 
@@ -60,7 +60,7 @@ void MultiVehicleDetection::vectornav_callback(const a2rl_bs_msgs::msg::Vectorna
 void MultiVehicleDetection::clustering_filter(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_lidar, pcl::PointCloud<RadarPointType>::Ptr cloud_radar, double init_x, double init_y){
     //RCLCPP_INFO(this->get_logger(),"clustering filter ...");
     pcl::PointCloud<pcl::PointXYZI>::Ptr lidar_filtered(new pcl::PointCloud<pcl::PointXYZI>);
-    pcl::PointCloud<RadarPointType>::Ptr radar_filtered(new pcl::PointCloud<RadarPointType>);
+    pcl::PointCloud<RadarPointType>::Ptr radar_outlier(new pcl::PointCloud<RadarPointType>);
     
     for (const auto& point : *cloud_lidar) {
         if (point.z <= Z_UPPER_BOUND && point.y*point.y+point.x*point.x > SELF_BOUND*SELF_BOUND && point.x > -30 && point.x < 80 && point.y > -50 && point.y < 50) {
@@ -70,13 +70,13 @@ void MultiVehicleDetection::clustering_filter(pcl::PointCloud<pcl::PointXYZI>::P
 
     for (const auto& point : *cloud_radar){
         if (point.z <= Z_UPPER_BOUND && point.y*point.y+point.x*point.x > SELF_BOUND*SELF_BOUND && point.x > -50 && point.x < 50 && point.y > -50 && point.y < 50) {
-            radar_filtered->push_back(point);
+            radar_outlier->push_back(point);
         }
     }
     //RCLCPP_INFO(this->get_logger(),"after creating clouds ...");
     // for radar
-    pcl::PointCloud<RadarPointType>::Ptr radar_outlier(new pcl::PointCloud<RadarPointType>);
-    VAP(radar_filtered, radar_outlier, init_x, init_y); // consider merging ego velocity into VAP
+    // pcl::PointCloud<RadarPointType>::Ptr radar_outlier(new pcl::PointCloud<RadarPointType>);
+    // VAP(radar_filtered, radar_outlier, init_x, init_y); // consider merging ego velocity into VAP
     //std::cout<<"before vap "<<radar_filtered->size()<<std::endl;
     //std::cout<<"after vap "<<radar_outlier->size()<<std::endl;
     //RCLCPP_INFO(this->get_logger(),"after vap ...");
@@ -98,7 +98,7 @@ void MultiVehicleDetection::clustering_filter(pcl::PointCloud<pcl::PointXYZI>::P
     pcl::VoxelGrid<pcl::PointXYZI> sor;
 
     sor.setInputCloud(lidar_filtered);
-    sor.setLeafSize(0.1f, 0.1f, 0.05f);
+    sor.setLeafSize(0.2f, 0.2f, 0.05f);
     sor.filter(*lidar_final);
     //RCLCPP_INFO(this->get_logger(),"after lidar gridvoxel ...");
     pcl::search::KdTree<pcl::PointXYZI>::Ptr lidar_tree(new pcl::search::KdTree<pcl::PointXYZI>);
@@ -107,7 +107,7 @@ void MultiVehicleDetection::clustering_filter(pcl::PointCloud<pcl::PointXYZI>::P
     std::vector<pcl::PointIndices> lidar_cluster_indices;
     pcl::EuclideanClusterExtraction<pcl::PointXYZI> er;
     er.setClusterTolerance(0.3);
-    er.setMinClusterSize(50); //TODO: change this parameters
+    er.setMinClusterSize(100); //TODO: change this parameters
     er.setSearchMethod(lidar_tree);
     er.setInputCloud(lidar_final);
     er.extract(lidar_cluster_indices);
@@ -200,30 +200,43 @@ void MultiVehicleDetection::clustering_filter(pcl::PointCloud<pcl::PointXYZI>::P
     //std::cout<<"Lidar clustering returns "<<lidar_cluster_properties.size()<<" clusters"<<std::endl;
     //RCLCPP_INFO(this->get_logger(),"after knn ...");
     pcl::PointCloud<pcl::PointXYZI>::Ptr merged_cloud_(new pcl::PointCloud<pcl::PointXYZI>);
-    for(auto &idx : associations){
-        if(idx > -1) *merged_cloud_ += *(lidar_cluster_properties[idx].merged_cloud_);
+    // for(auto &idx : associations){
+    //     if(idx > -1) *merged_cloud_ += *(lidar_cluster_properties[idx].merged_cloud_);
+    // }
+    for (std::vector<pcl::PointIndices>::const_iterator it = lidar_cluster_indices.begin(); it != lidar_cluster_indices.end(); ++it)
+    {
+        for (const auto& idx : it->indices)
+            merged_cloud_->push_back((*lidar_final)[idx]);
+
+        merged_cloud_->width = merged_cloud_->size();
+        merged_cloud_->height = 1;
+        merged_cloud_->is_dense = true;
     }
+    // for (int it = 0; it <lidar_cluster_properties.size(); ++it)
+    // {
+    //     *merged_cloud_ += *(lidar_cluster_properties[it].merged_cloud_);
+    // }
     sensor_msgs::msg::PointCloud2 output;
     pcl::toROSMsg(*merged_cloud_, output);
     output.header.frame_id = "map";
     vis_publisher_->publish(output);
     //RCLCPP_INFO(this->get_logger(),"Pub lidar ...");
-    pcl::PointCloud<RadarPointType>::Ptr merged_radar_(new pcl::PointCloud<RadarPointType>);
-    for(auto &idx : radar_cluster_properties){
-        *merged_radar_ += *(idx.merged_cloud_);
-    }
-    // for (std::vector<pcl::PointIndices>::const_iterator it = radar_cluster_indices.begin(); it != radar_cluster_indices.end(); ++it)
-    // {
-    //     for (const auto& idx : it->indices)
-    //         merged_radar_->push_back((*radar_outlier)[idx]);
-    //     merged_radar_->width = merged_radar_->size();
-    //     merged_radar_->height = 1;
-    //     merged_radar_->is_dense = true;
+    // pcl::PointCloud<RadarPointType>::Ptr merged_radar_(new pcl::PointCloud<RadarPointType>);
+    // for(auto &idx : radar_cluster_properties){
+    //     *merged_radar_ += *(idx.merged_cloud_);
     // }
+    // // for (std::vector<pcl::PointIndices>::const_iterator it = radar_cluster_indices.begin(); it != radar_cluster_indices.end(); ++it)
+    // // {
+    // //     for (const auto& idx : it->indices)
+    // //         merged_radar_->push_back((*radar_outlier)[idx]);
+    // //     merged_radar_->width = merged_radar_->size();
+    // //     merged_radar_->height = 1;
+    // //     merged_radar_->is_dense = true;
+    // // }
 
-    sensor_msgs::msg::PointCloud2 radaroutput;
-    pcl::toROSMsg(*radar_outlier, radaroutput);
-    radaroutput.header.frame_id = "map";
-    vis_radar_publisher_->publish(radaroutput);
+    // sensor_msgs::msg::PointCloud2 radaroutput;
+    // pcl::toROSMsg(*radar_outlier, radaroutput);
+    // radaroutput.header.frame_id = "map";
+    // vis_radar_publisher_->publish(radaroutput);
     //RCLCPP_INFO(this->get_logger(),"Pub radar ...");
 }

@@ -151,7 +151,6 @@ private:
         pcl::PointCloud<RadarPointType>::Ptr l_transformed_cloud(new pcl::PointCloud<RadarPointType>());
         pcl::PointCloud<RadarPointType>::Ptr r_transformed_cloud(new pcl::PointCloud<RadarPointType>());
         pcl::PointCloud<RadarPointType>::Ptr b_transformed_cloud(new pcl::PointCloud<RadarPointType>());
-        pcl::PointCloud<RadarPointType>::Ptr merged_transformed_cloud(new pcl::PointCloud<RadarPointType>());
         if(right_cloud->size()>0){
             pcl::transformPointCloud(*right_cloud, *r_transformed_cloud, T_right);
             *merged_cloud_ += *r_transformed_cloud;
@@ -168,12 +167,9 @@ private:
             pcl::transformPointCloud(*back_cloud, *b_transformed_cloud, T_back);
             *merged_cloud_ += *b_transformed_cloud;
         }
-        if(merged_cloud_->size()>0){
-            pcl::transformPointCloud(*merged_cloud_, *merged_transformed_cloud, T_body);
-        }
 
         sensor_msgs::msg::PointCloud2 output;
-        pcl::toROSMsg(*merged_transformed_cloud, output);
+        pcl::toROSMsg(*merged_cloud_, output);
         output.header.stamp = time;
         RCLCPP_INFO(this->get_logger(),"Current time: %ld seconds and %ld nanoseconds", 
             output.header.stamp.sec, 
@@ -205,11 +201,11 @@ private:
     bool count_right = false;
     bool count_front = false;
     bool count_back = false;
-    Eigen::Matrix4d T_front = createTransformationMatrix(rpy_front,xyz_front);
-    Eigen::Matrix4d T_left = createTransformationMatrix(rpy_left,xyz_left);
-    Eigen::Matrix4d T_right = createTransformationMatrix(rpy_right,xyz_right);
-    Eigen::Matrix4d T_back = createTransformationMatrix(rpy_back,xyz_back);
     Eigen::Matrix4d T_body = createTransformationMatrix(rpy_body,xyz_body);
+    Eigen::Matrix4d T_front = T_body*createTransformationMatrix(rpy_front,xyz_front);
+    Eigen::Matrix4d T_left = T_body*createTransformationMatrix(rpy_left,xyz_left);
+    Eigen::Matrix4d T_right = T_body*createTransformationMatrix(rpy_right,xyz_right);
+    Eigen::Matrix4d T_back = T_body*createTransformationMatrix(rpy_back,xyz_back);
 
     pcl::PointCloud<RadarPointType>::Ptr front_cloud{new pcl::PointCloud<RadarPointType>()};
     pcl::PointCloud<RadarPointType>::Ptr left_cloud{new pcl::PointCloud<RadarPointType>()};

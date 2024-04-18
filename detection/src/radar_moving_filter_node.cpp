@@ -38,6 +38,12 @@ Eigen::Matrix4d createTransformationMatrix(Eigen::Vector3d &rpy, Eigen::Vector3d
     return transformationMatrix;
 }
 
+Eigen::Vector2d velocity_transform(Eigen::Matrix4d TransformMatrix, double v_x, double v_y){
+    Eigen::Vector2d v_ini;
+    v_ini<<v_x,v_y;
+    return (TransformMatrix.block<2, 2>(0, 0)).inverse()*v_ini;
+}
+
 void confidence_filter(pcl::PointCloud<RadarPointType>::Ptr cloud_in, pcl::PointCloud<RadarPointType>::Ptr cloud_out){
     for (const auto& p : *cloud_in) {
         RadarPointType point;
@@ -72,23 +78,23 @@ void confidence_filter(pcl::PointCloud<RadarPointType>::Ptr cloud_in, pcl::Point
     }
 }
 
-class RadarFusionNode : public rclcpp::Node
+class RadarDynamicNode : public rclcpp::Node
 {
 public:
-    RadarFusionNode() : Node("radar_moving_node")
+    RadarDynamicNode() : Node("radar_moving_node")
     {
         subscription_front_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "/sensor/radar_front/points", 10, std::bind(&RadarFusionNode::front_pointsCallback, this, std::placeholders::_1));
+            "/sensor/radar_front/points", 10, std::bind(&RadarDynamicNode::front_pointsCallback, this, std::placeholders::_1));
         subscription_left_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "/sensor/radar_left/points", 10, std::bind(&RadarFusionNode::left_pointsCallback, this, std::placeholders::_1));
+            "/sensor/radar_left/points", 10, std::bind(&RadarDynamicNode::left_pointsCallback, this, std::placeholders::_1));
         subscription_right_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "/sensor/radar_right/points", 10, std::bind(&RadarFusionNode::right_pointsCallback, this, std::placeholders::_1));
+            "/sensor/radar_right/points", 10, std::bind(&RadarDynamicNode::right_pointsCallback, this, std::placeholders::_1));
         subscription_back_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "/sensor/radar_back/points", 10, std::bind(&RadarFusionNode::back_pointsCallback, this, std::placeholders::_1));
+            "/sensor/radar_back/points", 10, std::bind(&RadarDynamicNode::back_pointsCallback, this, std::placeholders::_1));
         
         publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/dynamic_radar_points", 10);
 
-        vectornav_subscriber_ = this->create_subscription<a2rl_bs_msgs::msg::VectornavIns>("/a2rl/vn/ins", 10, std::bind(&MultiVehicleDetection::vectornav_callback, this, std::placeholders::_1));
+        vectornav_subscriber_ = this->create_subscription<a2rl_bs_msgs::msg::VectornavIns>("/a2rl/vn/ins", 10, std::bind(&RadarDynamicNode::vectornav_callback, this, std::placeholders::_1));
     }
 
 private:
@@ -104,8 +110,9 @@ private:
         pcl::fromROSMsg(*msg, *cloud);
         pcl::PointCloud<RadarPointType>::Ptr cloud_filtered(new pcl::PointCloud<RadarPointType>);
         confidence_filter(cloud,cloud_filtered);
-        VAP(cloud_filtered, front_cloud, latest_vn_msg_.velocity_body_ins.x, latest_vn_msg_.velocity_body_ins.y);
-
+        Eigen::Vector2d v_curr = velocity_transform(T_front, latest_vn_msg_.velocity_body_ins.x, latest_vn_msg_.velocity_body_ins.y);
+        VAP_front(cloud_filtered, front_cloud, v_curr(0), v_curr(1));
+        std::cout<<"front "<<cloud_filtered->size()-front_cloud->size()<<std::endl;
         count_front = true;
         if(count_front && count_left && count_right && count_back){
             publish(msg->header.stamp);
@@ -120,8 +127,11 @@ private:
         pcl::fromROSMsg(*msg, *cloud);
         pcl::PointCloud<RadarPointType>::Ptr cloud_filtered(new pcl::PointCloud<RadarPointType>);
         confidence_filter(cloud,cloud_filtered);
-        VAP(cloud_filtered, left_cloud, latest_vn_msg_.velocity_body_ins.x, latest_vn_msg_.velocity_body_ins.y);
-
+        Eigen::Vector2d v_curr = velocity_transform(T_left, latest_vn_msg_.velocity_body_ins.x, latest_vn_msg_.velocity_body_ins.y);
+        std::cout<<v_curr<<std::endl;
+        VAP_left(cloud_filtered, left_cloud, v_curr(0), v_curr(1));
+        std::cout<<"left "<<cloud_filtered->size()-left_cloud->size()<<std::endl;
+        //std::cout<<"left"<<std::endl;
         count_left = true;
         if(count_front && count_left && count_right && count_back){
             publish(msg->header.stamp);
@@ -136,8 +146,9 @@ private:
         pcl::fromROSMsg(*msg, *cloud);
         pcl::PointCloud<RadarPointType>::Ptr cloud_filtered(new pcl::PointCloud<RadarPointType>);
         confidence_filter(cloud,cloud_filtered);
-        VAP(cloud_filtered, right_cloud, latest_vn_msg_.velocity_body_ins.x, latest_vn_msg_.velocity_body_ins.y);
-
+        Eigen::Vector2d v_curr = velocity_transform(T_right, latest_vn_msg_.velocity_body_ins.x, latest_vn_msg_.velocity_body_ins.y);
+        VAP_left(cloud_filtered, right_cloud, v_curr(0), v_curr(1));
+        //std::cout<<"right"<<std::endl;
         count_right = true;
         if(count_front && count_left && count_right && count_back){
             publish(msg->header.stamp);
@@ -152,8 +163,9 @@ private:
         pcl::fromROSMsg(*msg, *cloud);
         pcl::PointCloud<RadarPointType>::Ptr cloud_filtered(new pcl::PointCloud<RadarPointType>);
         confidence_filter(cloud,cloud_filtered);
-        VAP(cloud_filtered, back_cloud, latest_vn_msg_.velocity_body_ins.x, latest_vn_msg_.velocity_body_ins.y);
-
+        Eigen::Vector2d v_curr = velocity_transform(T_back, latest_vn_msg_.velocity_body_ins.x, latest_vn_msg_.velocity_body_ins.y);
+        VAP_back(cloud_filtered, back_cloud, v_curr(0), v_curr(1));
+        //std::cout<<"back"<<std::endl;
         count_back = true;
         if(count_front && count_left && count_right && count_back){
             publish(msg->header.stamp);
@@ -165,29 +177,29 @@ private:
         pcl::PointCloud<RadarPointType>::Ptr l_transformed_cloud(new pcl::PointCloud<RadarPointType>());
         pcl::PointCloud<RadarPointType>::Ptr r_transformed_cloud(new pcl::PointCloud<RadarPointType>());
         pcl::PointCloud<RadarPointType>::Ptr b_transformed_cloud(new pcl::PointCloud<RadarPointType>());
-        pcl::PointCloud<RadarPointType>::Ptr merged_transformed_cloud(new pcl::PointCloud<RadarPointType>());
         if(right_cloud->size()>0){
+            //std::cout<<"1"<<std::endl;
             pcl::transformPointCloud(*right_cloud, *r_transformed_cloud, T_right);
             *merged_cloud_ += *r_transformed_cloud;
         }
         if(left_cloud->size()>0){
+            //std::cout<<"2"<<std::endl;
             pcl::transformPointCloud(*left_cloud, *l_transformed_cloud, T_left);
             *merged_cloud_ += *l_transformed_cloud;
         }
         if(front_cloud->size()>0){
+            //std::cout<<"3"<<std::endl;
             pcl::transformPointCloud(*front_cloud, *f_transformed_cloud, T_front);
             *merged_cloud_ += *f_transformed_cloud;
         }
         if(back_cloud->size()>0){
+            //std::cout<<"4"<<std::endl;
             pcl::transformPointCloud(*back_cloud, *b_transformed_cloud, T_back);
             *merged_cloud_ += *b_transformed_cloud;
         }
-        if(merged_cloud_->size()>0){
-            pcl::transformPointCloud(*merged_cloud_, *merged_transformed_cloud, T_body);
-        }
-
+        //std::cout<<"pub"<<std::endl;
         sensor_msgs::msg::PointCloud2 output;
-        pcl::toROSMsg(*merged_transformed_cloud, output);
+        pcl::toROSMsg(*merged_cloud_, output);
         output.header.stamp = time;
         RCLCPP_INFO(this->get_logger(),"Current time: %ld seconds and %ld nanoseconds", 
             output.header.stamp.sec, 
@@ -219,11 +231,11 @@ private:
     bool count_right = false;
     bool count_front = false;
     bool count_back = false;
-    Eigen::Matrix4d T_front = createTransformationMatrix(rpy_front,xyz_front);
-    Eigen::Matrix4d T_left = createTransformationMatrix(rpy_left,xyz_left);
-    Eigen::Matrix4d T_right = createTransformationMatrix(rpy_right,xyz_right);
-    Eigen::Matrix4d T_back = createTransformationMatrix(rpy_back,xyz_back);
     Eigen::Matrix4d T_body = createTransformationMatrix(rpy_body,xyz_body);
+    Eigen::Matrix4d T_front = T_body*createTransformationMatrix(rpy_front,xyz_front);
+    Eigen::Matrix4d T_left = T_body*createTransformationMatrix(rpy_left,xyz_left);
+    Eigen::Matrix4d T_right = T_body*createTransformationMatrix(rpy_right,xyz_right);
+    Eigen::Matrix4d T_back = T_body*createTransformationMatrix(rpy_back,xyz_back);
 
     pcl::PointCloud<RadarPointType>::Ptr front_cloud{new pcl::PointCloud<RadarPointType>()};
     pcl::PointCloud<RadarPointType>::Ptr left_cloud{new pcl::PointCloud<RadarPointType>()};
@@ -242,7 +254,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<RadarFusionNode>();
+    auto node = std::make_shared<RadarDynamicNode>();
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

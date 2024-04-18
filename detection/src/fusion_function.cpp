@@ -64,7 +64,7 @@ void POINT_ASSOCIATION_KNN(pcl::PointCloud<pcl::PointXYZ>::Ptr radar_xyz, pcl::P
 //     return v_ego;
 // }
 
-void VAP(pcl::PointCloud<RadarPointType>::Ptr cloud, pcl::PointCloud<RadarPointType>::Ptr cloud_out, double init_x, double init_y){
+void VAP_left(pcl::PointCloud<RadarPointType>::Ptr cloud, pcl::PointCloud<RadarPointType>::Ptr cloud_out, double init_x, double init_y){
   //Eigen::Vector2d v_ego = EstimateEgoVelocity(cloud, init_x, init_y);
   Eigen::Vector2d v_ego;
   v_ego <<init_x, init_y;
@@ -75,7 +75,7 @@ void VAP(pcl::PointCloud<RadarPointType>::Ptr cloud, pcl::PointCloud<RadarPointT
   for (size_t i = 0; i < cloud->points.size(); ++i) {
       double azimuth = std::atan2(cloud->points[i].y, cloud->points[i].x);
       double predicted_vd = v_ego[0] * std::cos(azimuth) + v_ego[1] * std::sin(azimuth);
-      double residual = predicted_vd - cloud->points[i].velocity;
+      double residual = predicted_vd + cloud->points[i].velocity;
       residuals.push_back(residual);
   }
 
@@ -84,14 +84,91 @@ void VAP(pcl::PointCloud<RadarPointType>::Ptr cloud, pcl::PointCloud<RadarPointT
   double std_dev = std::sqrt(sq_sum / residuals.size() - mean_residual * mean_residual);
 
   for (size_t i = 0; i < residuals.size(); ++i) {
-      if (std::abs(residuals[i]) > std_dev) {
+      if (std::abs(residuals[i]) > 1*std_dev) {
           outliers_indices.push_back(i);
       }
   }
 
   for (int idx : outliers_indices) {
-      cloud_out->points.push_back(cloud->points[idx]);
+      cloud_out->push_back(cloud->points[idx]);
   }
   //return v_ego;
 }
 
+void VAP_front(pcl::PointCloud<RadarPointType>::Ptr cloud, pcl::PointCloud<RadarPointType>::Ptr cloud_out, double init_x, double init_y){
+  Eigen::Vector2d v_ego;
+  v_ego <<init_x, init_y;
+
+  std::vector<int> outliers_indices;
+  std::vector<double> residuals;
+
+  double mean_vel = 0;
+
+  for (size_t i = 0; i < cloud->points.size(); ++i) {
+      mean_vel += cloud->points[i].velocity;
+  }
+  mean_vel /= cloud->points.size();
+
+  if(mean_vel > 0) v_ego = -v_ego;
+
+
+  for (size_t i = 0; i < cloud->points.size(); ++i) {
+      double azimuth = std::atan2(cloud->points[i].y, cloud->points[i].x);
+      double predicted_vd = v_ego[0] * std::cos(azimuth) + v_ego[1] * std::sin(azimuth);
+      double residual = predicted_vd + cloud->points[i].velocity;
+      residuals.push_back(residual);
+  }
+
+  double mean_residual = std::accumulate(residuals.begin(), residuals.end(), 0.0) / residuals.size();
+  double sq_sum = std::inner_product(residuals.begin(), residuals.end(), residuals.begin(), 0.0);
+  double std_dev = std::sqrt(sq_sum / residuals.size() - mean_residual * mean_residual);
+
+  for (size_t i = 0; i < residuals.size(); ++i) {
+      if (std::abs(residuals[i]) > 1*std_dev) {
+          outliers_indices.push_back(i);
+      }
+  }
+
+  for (int idx : outliers_indices) {
+      cloud_out->push_back(cloud->points[idx]);
+  }
+}
+
+void VAP_back(pcl::PointCloud<RadarPointType>::Ptr cloud, pcl::PointCloud<RadarPointType>::Ptr cloud_out, double init_x, double init_y){
+  Eigen::Vector2d v_ego;
+  v_ego <<init_x, init_y;
+
+  std::vector<int> outliers_indices;
+  std::vector<double> residuals;
+
+  double mean_vel = 0;
+
+  for (size_t i = 0; i < cloud->points.size(); ++i) {
+      mean_vel += cloud->points[i].velocity;
+  }
+  mean_vel /= cloud->points.size();
+
+  if(mean_vel < 0) v_ego = -v_ego;
+
+
+  for (size_t i = 0; i < cloud->points.size(); ++i) {
+      double azimuth = std::atan2(cloud->points[i].y, cloud->points[i].x);
+      double predicted_vd = v_ego[0] * std::cos(azimuth) + v_ego[1] * std::sin(azimuth);
+      double residual = predicted_vd + cloud->points[i].velocity;
+      residuals.push_back(residual);
+  }
+
+  double mean_residual = std::accumulate(residuals.begin(), residuals.end(), 0.0) / residuals.size();
+  double sq_sum = std::inner_product(residuals.begin(), residuals.end(), residuals.begin(), 0.0);
+  double std_dev = std::sqrt(sq_sum / residuals.size() - mean_residual * mean_residual);
+
+  for (size_t i = 0; i < residuals.size(); ++i) {
+      if (std::abs(residuals[i]) > 1*std_dev) {
+          outliers_indices.push_back(i);
+      }
+  }
+
+  for (int idx : outliers_indices) {
+      cloud_out->push_back(cloud->points[idx]);
+  }
+}

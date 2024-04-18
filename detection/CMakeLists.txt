@@ -51,7 +51,7 @@ add_executable(detection_node src/detection_node.cpp src/detection.cpp src/fusio
 ament_target_dependencies(detection_node rclcpp rclcpp_components tf2 tf2_ros tf2_geometry_msgs pcl_conversions PCL sensor_msgs geometry_msgs OpenCV a2rl_bs_msgs)
 target_link_libraries(detection_node ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
-add_executable(radar_moving_node src/radar_moving_filter_node.cpp.cpp src/fusion_function.cpp)
+add_executable(radar_moving_node src/radar_moving_filter_node.cpp src/fusion_function.cpp)
 ament_target_dependencies(radar_moving_node rclcpp rclcpp_components tf2 tf2_ros tf2_geometry_msgs pcl_conversions PCL sensor_msgs geometry_msgs a2rl_bs_msgs)
 target_link_libraries(radar_moving_node ${PCL_LIBRARIES})
 

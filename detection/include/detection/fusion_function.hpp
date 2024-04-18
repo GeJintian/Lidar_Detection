@@ -36,7 +36,11 @@ private:
 
 //Eigen::Vector2d EstimateEgoVelocity(pcl::PointCloud<RadarPointType>::Ptr cloud, double init_x, double init_y);
 
-void VAP(pcl::PointCloud<RadarPointType>::Ptr cloud, pcl::PointCloud<RadarPointType>::Ptr cloud_out, double init_x, double init_y);
+void VAP_front(pcl::PointCloud<RadarPointType>::Ptr cloud, pcl::PointCloud<RadarPointType>::Ptr cloud_out, double init_x, double init_y);
+
+void VAP_left(pcl::PointCloud<RadarPointType>::Ptr cloud, pcl::PointCloud<RadarPointType>::Ptr cloud_out, double init_x, double init_y);
+
+void VAP_back(pcl::PointCloud<RadarPointType>::Ptr cloud, pcl::PointCloud<RadarPointType>::Ptr cloud_out, double init_x, double init_y);
 
 double cluster_euclideanDistance(ClusterProperties &a, ClusterProperties &b);
 
