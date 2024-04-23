@@ -318,7 +318,7 @@ private:
     /* ROS Callbacks Functions */
     rcl_interfaces::msg::SetParametersResult parametersCallback(
         const std::vector<rclcpp::Parameter> &parameters);
-    sensor_msgs::msg::PointCloud2 cloud2msg(pcl::PointCloud<PointT> cloud, const rclcpp::Time& stamp, std::string frame_id); 
+    sensor_msgs::msg::PointCloud2 cloud2msg(pcl::PointCloud<PointT> cloud, builtin_interfaces::msg::Time stamp, std::string frame_id); 
 };
 
 template<typename PointT> inline
@@ -1130,20 +1130,22 @@ void PatchWorkpp<PointT>::callbackCloud(const sensor_msgs::msg::PointCloud2::Con
             << " (running_time: " << time_taken << " sec)" << "\033[0m");
     }
 
-    extract_curbside(pc_non_ground,pc_curbside);
+    //extract_curbside(pc_non_ground,pc_curbside);
 
-    pub_curbside->publish(cloud2msg(pc_curbside,cloud_msg->header.stamp, cloud_msg->header.frame_id));
+    //pub_curbside->publish(cloud2msg(pc_curbside,cloud_msg->header.stamp, cloud_msg->header.frame_id));
+    RCLCPP_INFO(this->get_logger(),"Current time: %ld seconds and %ld nanoseconds", 
+        cloud_msg->header.stamp.sec, 
+        cloud_msg->header.stamp.nanosec % 1000000000);
     pub_cloud->publish(cloud2msg(pc_transformed, cloud_msg->header.stamp, cloud_msg->header.frame_id));
     pub_ground->publish(cloud2msg(pc_ground, cloud_msg->header.stamp, cloud_msg->header.frame_id));
     pub_non_ground->publish(cloud2msg(pc_non_ground, cloud_msg->header.stamp, cloud_msg->header.frame_id));
 }
 
 template<typename PointT>
-sensor_msgs::msg::PointCloud2 PatchWorkpp<PointT>::cloud2msg(pcl::PointCloud<PointT> cloud, const rclcpp::Time& stamp, std::string frame_id) {
+sensor_msgs::msg::PointCloud2 PatchWorkpp<PointT>::cloud2msg(pcl::PointCloud<PointT> cloud, builtin_interfaces::msg::Time stamp, std::string frame_id) {
     sensor_msgs::msg::PointCloud2 cloud_ROS;
     pcl::toROSMsg(cloud, cloud_ROS);
-    cloud_ROS.header.stamp.sec = stamp.seconds();
-    cloud_ROS.header.stamp.nanosec = stamp.nanoseconds() - stamp.seconds()*1e9;
+    cloud_ROS.header.stamp=stamp;
     cloud_ROS.header.frame_id = frame_id_;
     return cloud_ROS;
 }

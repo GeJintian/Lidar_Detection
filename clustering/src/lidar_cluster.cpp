@@ -13,7 +13,7 @@ public:
     : Node("lidar_subscriber")
     {
         subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "/nonground", 1, std::bind(&LiDARSubscriber::topic_callback, this, std::placeholders::_1));
+            "/velodyne_points", 1, std::bind(&LiDARSubscriber::topic_callback, this, std::placeholders::_1));
     }
     int count = 0;
 private:
@@ -27,7 +27,7 @@ private:
         ss << setw(9)<<setfill('0')<<count;
         string str;
         ss>>str;
-        string name = "../data/03_21/non_ground/"+str + ".pcd";
+        string name = "/home/oscar/workspace/zyx/"+str + ".pcd";
         pcl::io::savePCDFileASCII(name,*cloud);
         // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
         // pcl::fromROSMsg(*msg, *cloud);

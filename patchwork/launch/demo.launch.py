@@ -24,7 +24,7 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 {'cloud_topic': '/velodyne_points'}, # Input pointcloud
-                {'frame_id': 'laser_frame'},
+                {'frame_id': 'map'},
                 {'sensor_height': 1.88},
                 {'num_iter': 3},             # Number of iterations for ground plane estimation using PCA.
                 {'num_lpr': 20},             # Maximum number of points to be selected as lowest points representative.
@@ -37,7 +37,7 @@ def generate_launch_description():
                 {'min_r': 1.0},              # min_range of ground estimation area
                 {'uprightness_thr': 0.101},  # threshold of uprightness using in Ground Likelihood Estimation(GLE). Please refer paper for more information about GLE.
                 {'verbose': False},          # display verbose info
-                {'display_time': False},     # display running_time and pointcloud sizes
+                {'display_time': True},     # display running_time and pointcloud sizes
             ],
             arguments=[LaunchConfiguration('cloud_topic')],
         ),

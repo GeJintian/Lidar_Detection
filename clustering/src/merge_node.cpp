@@ -12,7 +12,8 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <pcl/filters/filter.h> 
+#include <pcl/filters/filter.h>
+#include "builtin_interfaces/msg/time.hpp"
 #include "pcl/filters/impl/filter.hpp"
 
 #define LIDAR_FILTER_ANGLE 52
@@ -74,7 +75,7 @@ private:
 
         count_front = true;
         if(count_front && count_left && count_right){
-            publish();
+            publish(msg->header.stamp);
         }
     }
     void left_pointsCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
@@ -97,7 +98,7 @@ private:
         // }
         count_left = true;
         if(count_front && count_left && count_right){
-            publish();
+            publish(msg->header.stamp);
         }
     }
     void right_pointsCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
@@ -120,10 +121,10 @@ private:
         // }
         count_right = true;
         if(count_front && count_left && count_right){
-            publish();
+            publish(msg->header.stamp);
         }
     }
-    void publish(){
+    void publish(builtin_interfaces::msg::Time time){
         pcl::PointCloud<pcl::PointXYZI>::Ptr merged_cloud_(new pcl::PointCloud<pcl::PointXYZI>());
         pcl::PointCloud<pcl::PointXYZI>::Ptr f_transformed_cloud(new pcl::PointCloud<pcl::PointXYZI>());
         pcl::PointCloud<pcl::PointXYZI>::Ptr l_transformed_cloud(new pcl::PointCloud<pcl::PointXYZI>());
@@ -145,6 +146,10 @@ private:
 
         sensor_msgs::msg::PointCloud2 output;
         pcl::toROSMsg(*merged_cloud_, output);
+        output.header.stamp = time;
+        RCLCPP_INFO(this->get_logger(),"Current time: %ld seconds and %ld nanoseconds", 
+            output.header.stamp.sec, 
+            output.header.stamp.nanosec % 1000000000);
         output.header.frame_id = "map";
         publisher_->publish(output);
         front_cloud->clear();

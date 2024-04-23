@@ -77,6 +77,18 @@ def read_traj(file_name):
     f.close()
     return point_set, points_array
 
+def read_traj_wo_z(file_name):
+    point_set = []
+    points_array = []
+    f = open(file_name, 'r')
+    for line in f:
+        parts = line.split(',')
+        x, y = float(parts[0]), float(parts[1])
+        trans = np.array([x, y, 0])
+        points_array.append(trans)
+    f.close()
+    return point_set, points_array
+
 def draw_registration_result(source, target, transformation):
     source_temp = copy.deepcopy(source)
     target_temp = copy.deepcopy(target)
@@ -85,55 +97,71 @@ def draw_registration_result(source, target, transformation):
     source_temp.transform(transformation)
     o3d.visualization.draw_geometries([source_temp, target_temp])
 
-left_traj_file = "/home/oscar/workspace/a2rl/automan-a2rl/src/localization/src/utils/left.txt"
-right_traj_file = "/home/oscar/workspace/a2rl/automan-a2rl/src/localization/src/utils/right.txt"
-front_traj_file = "/home/oscar/workspace/a2rl/automan-a2rl/src/localization/src/utils/front.txt"
+# left_traj_file = "/home/oscar/workspace/a2rl/automan-a2rl/src/localization/src/utils/left.txt"
+# right_traj_file = "/home/oscar/workspace/a2rl/automan-a2rl/src/localization/src/utils/right.txt"
+# front_traj_file = "/home/oscar/workspace/a2rl/automan-a2rl/src/localization/src/utils/front.txt"
 
-front_xyz=[0.11156371743249438, -0.015148333508697098, -0.10643051836532358] 
-front_rpy=[0.048645729083959824, 0.031505277472651416, -1.5728420649351478]
+# front_xyz=[0.11156371743249438, -0.015148333508697098, -0.10643051836532358] 
+# front_rpy=[0.048645729083959824, 0.031505277472651416, -1.5728420649351478]
 
-left_xyz=[0.05473934211418374, -0.2372464311776421, -0.6578870124268912] 
-left_rpy=[2.143873331795305, -0.003605912968916103, -1.5671401905346867]
+# left_xyz=[0.05473934211418374, -0.2372464311776421, -0.6578870124268912] 
+# left_rpy=[2.143873331795305, -0.003605912968916103, -1.5671401905346867]
 
-right_xyz=[0.16838809275080502, -0.2372464311776421, -0.6578870124268912] 
-right_rpy=[-2.143873331795305, -0.003605912968916103, -1.5744524630551062]
+# right_xyz=[0.16838809275080502, -0.2372464311776421, -0.6578870124268912] 
+# right_rpy=[-2.143873331795305, -0.003605912968916103, -1.5744524630551062]
 
-front_T = create_transformation_matrix(front_rpy,front_xyz)
-left_T = create_transformation_matrix(left_rpy,left_xyz)
-right_T = create_transformation_matrix(right_rpy,right_xyz)
+# front_T = create_transformation_matrix(front_rpy,front_xyz)
+# left_T = create_transformation_matrix(left_rpy,left_xyz)
+# right_T = create_transformation_matrix(right_rpy,right_xyz)
 
-l_p, l_a = read_traj(left_traj_file)
-r_p, r_a = read_traj(right_traj_file)
-f_p, f_a = read_traj(front_traj_file)
+# l_p, l_a = read_traj(left_traj_file)
+# r_p, r_a = read_traj(right_traj_file)
+# f_p, f_a = read_traj(front_traj_file)
 
-pcd_left = o3d.geometry.PointCloud()
-pcd_left.points = o3d.utility.Vector3dVector(np.array(l_a))
+# pcd_left = o3d.geometry.PointCloud()
+# pcd_left.points = o3d.utility.Vector3dVector(np.array(l_a))
 
-pcd_right = o3d.geometry.PointCloud()
-pcd_right.points = o3d.utility.Vector3dVector(np.array(r_a))
+# pcd_right = o3d.geometry.PointCloud()
+# pcd_right.points = o3d.utility.Vector3dVector(np.array(r_a))
 
-pcd_front = o3d.geometry.PointCloud()
-pcd_front.points = o3d.utility.Vector3dVector(np.array(f_a))
+# pcd_front = o3d.geometry.PointCloud()
+# pcd_front.points = o3d.utility.Vector3dVector(np.array(f_a))
 
-result = o3d.pipelines.registration.registration_generalized_icp(pcd_right, pcd_front,1, np.dot(np.linalg.inv(front_T),right_T))
+lidar_traj_file = "/home/oscar/workspace/a2rl/dataset/rtk_path/gicp_poses.csv"
+rtk_traj_file = "/home/oscar/workspace/a2rl/dataset/rtk_path/rtk_poses.csv"
+
+_, l_a = read_traj_wo_z(lidar_traj_file)
+_, r_a = read_traj_wo_z(rtk_traj_file)
+
+pcd_rtk = o3d.geometry.PointCloud()
+pcd_rtk.points = o3d.utility.Vector3dVector(np.array(r_a))
+
+pcd_lidar = o3d.geometry.PointCloud()
+pcd_lidar.points = o3d.utility.Vector3dVector(np.array(l_a))
+
+init_guess = np.array([[1, 0, 0, 0],
+                       [0, 1, 0, 0],
+                       [0, 0, 1, 0],
+                       [0, 0, 0, 1]])
+result = o3d.pipelines.registration.registration_generalized_icp(pcd_lidar, pcd_rtk,10, init_guess) #rtk to lidar
 roll,pitch,yaw = rotation_matrix_to_euler_angles(np.array(result.transformation)[:3,:3])
 #print("init ",np.dot(np.linalg.inv(front_T),right_T))
 print("result",result.transformation)
 print("right to front: roll ",roll," pitch ",pitch, "yaw", yaw)
 
 
-# source_temp = copy.deepcopy(pcd_right)
-# target_temp = copy.deepcopy(pcd_front)
-# source_temp.paint_uniform_color([1, 0.706, 0])
-# target_temp.paint_uniform_color([0, 0.651, 0.929])
+source_temp = copy.deepcopy(pcd_rtk)
+target_temp = copy.deepcopy(pcd_lidar)
+source_temp.paint_uniform_color([1, 0.706, 0])
+target_temp.paint_uniform_color([0, 0.651, 0.929])
 # source_temp.transform(right_T)
 # target_temp.transform(front_T)
-# o3d.visualization.draw_geometries([source_temp, target_temp])
-#draw_registration_result(pcd_right, pcd_front, result.transformation)
+#o3d.visualization.draw_geometries([source_temp, target_temp])
+draw_registration_result(pcd_lidar, pcd_rtk, result.transformation)
 
 
-result = o3d.pipelines.registration.registration_generalized_icp(pcd_left, pcd_front,1, np.dot(np.linalg.inv(front_T),left_T))
-roll,pitch,yaw = rotation_matrix_to_euler_angles(np.array(result.transformation)[:3,:3])
-#print("init ",np.dot(np.linalg.inv(front_T),right_T))
-print("result",result.transformation)
-print("right to front: roll ",roll," pitch ",pitch, "yaw", yaw)
+# result = o3d.pipelines.registration.registration_generalized_icp(pcd_left, pcd_front,1, np.dot(np.linalg.inv(front_T),left_T))
+# roll,pitch,yaw = rotation_matrix_to_euler_angles(np.array(result.transformation)[:3,:3])
+# #print("init ",np.dot(np.linalg.inv(front_T),right_T))
+# print("result",result.transformation)
+# print("right to front: roll ",roll," pitch ",pitch, "yaw", yaw)
